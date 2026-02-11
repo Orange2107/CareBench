@@ -229,7 +229,7 @@ python main.py --model drfuse --task phenotype --mode test \
 - Select the checkpoint with the highest PRAUC (or ACC for LOS task) value from the filename
 - Use that checkpoint for testing
 
-```
+
 
 ---
 
@@ -270,7 +270,20 @@ python main.py --model drfuse --task phenotype --mode test \
   - [M3Care: Learning with Missing Modalities in Multimodal Healthcare Data](https://arxiv.org/abs/2210.17292) 
   - [MedFuse: Multi-modal fusion with clinical time-series data and chest X-ray images](https://arxiv.org/abs/2207.07027)  
   - [SMIL: Multimodal Learning with Severely Missing Modality](https://arxiv.org/abs/2103.05677)  
-  
+
+---
+
+## ⚙️ Model Hyperparameters and Configurations
+
+For detailed hyperparameter search spaces and best configurations for all models, please refer to [MODEL_PARAMS_README.md](MODEL_PARAMS_README.md).
+
+This document provides:
+- **Hyperparameter Search Spaces**: Overview of tunable hyperparameters for each model that underwent Bayesian optimization
+- **Best Configurations**: Complete hyperparameter settings for each model across different tasks (mortality, phenotype, length of stay) and cohorts (base cohort, matched subset)
+- **Fixed Parameters**: Common training parameters (learning rate, batch size, epochs, etc.) that are consistent across all models
+
+The hyperparameters were optimized using Bayesian optimization, and the best configurations are reported for reproducibility. Models that did not require hyperparameter search (e.g., LateFusion, DAFT, baseline models) have all their parameters documented as fixed values.
+
 ---
 
 ## 📁 Project Structure
