@@ -1,0 +1,66 @@
+model_name: uml
+
+# -----------------------
+# Encoder Selection
+# -----------------------
+ehr_encoder: transformer  # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50     # Options: 'resnet50'
+pretrained: true          # Whether to use ImageNet pretrained weights for CXR encoder
+
+# -----------------------
+# Encoder Trainability
+# -----------------------
+# Default: frozen (false) for both encoders
+# Only the projection layers and shared head will be trained
+is_ehr_trainable: false   # Whether to train EHR encoder (false=frozen, only projection trainable)
+is_cxr_trainable: false   # Whether to train CXR encoder (false=frozen, only fc layer trainable)
+
+# -----------------------
+# UML-Specific Parameters
+# -----------------------
+modality: both            # Options: 'ehr', 'cxr', 'both' (training modality)
+lambda_cxr: 1.0           # Loss weight for CXR modality (loss = loss_ehr + lambda_cxr * loss_cxr)
+embed_dim: 256            # Shared embedding dimension for both modalities
+head_bias: false          # Whether to use bias in classification head
+unpair_modalities: true  # Break EHR-CXR alignment by shuffling CXR independently (true unpaired learning)
+
+# -----------------------
+# Load Pretrained Encoders
+# -----------------------
+load_state_ehr: null      # Path to pretrained EHR encoder checkpoint (e.g., 'checkpoints/ehr_transformer.ckpt')
+load_state_cxr: null      # Path to pretrained CXR encoder checkpoint (e.g., 'checkpoints/cxr_resnet.ckpt')
+
+# -----------------------
+# Model Architecture
+# -----------------------
+hidden_size: 256
+ehr_n_layers: 1
+ehr_dropout: 0.3
+ehr_n_head: 4            # For transformer encoder
+attention_dropout: 0.1
+dropout: 0.3
+
+# Input dimensions
+input_dim: 49           # EHR dimension
+num_classes: 25
+
+# Training configuration
+task: mortality
+batch_size: 16
+epochs: 50
+patience: 10
+
+# Optimizer hyperparameters
+lr: 0.0001
+wd: 0.01
+
+# Label weights (for class imbalance)
+use_label_weights: false
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: true
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+

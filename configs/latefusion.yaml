@@ -1,0 +1,39 @@
+model_name: latefusion
+
+# EHR Encoder Configuration
+ehr_encoder: transformer  # 'lstm' or 'transformer'
+hidden_size: 256
+input_dim: 498  
+# EHR Encoder 
+ehr_n_layers: 2
+ehr_dropout: 0.3
+ehr_lstm_bidirectional: true
+ehr_n_head: 4
+
+# CXR Encoder Configuration
+cxr_encoder: resnet50  # 'resnet50'
+pretrained: true
+
+# Model Architecture
+num_classes: 25  # 6 for phenotype, 1 for mortality
+
+
+# Training Configuration
+task: phenotype  # 'phenotype' or 'mortality'
+batch_size: 16
+epochs: 50
+patience: 10
+lr: 0.0001
+
+# three loss
+unimodal_loss: false
+
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
+

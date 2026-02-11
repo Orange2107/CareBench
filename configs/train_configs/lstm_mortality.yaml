@@ -1,0 +1,51 @@
+# LSTM training configuration for mortality task
+# Parameters extracted from scripts/train_lstm.sh
+
+# Experiment metadata
+experiment_name: "lstm_mortality"
+description: "LSTM model training for mortality task on fold 1"
+
+# Model configuration
+model: lstm
+task: mortality
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0004
+patience: 10
+epochs: 50
+gpu: [0]
+num_workers: 1
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# LSTM specific parameters
+hidden_size: 256
+num_layers: 1
+bidirectional: true
+dropout: 0.2
+
+# Task-specific parameters
+num_classes: 1
+input_dim: 498
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

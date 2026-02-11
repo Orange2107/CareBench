@@ -1,0 +1,54 @@
+# Late Fusion training configuration for LOS task
+# Parameters extracted from los_train_scripts/train_latefusion.sh
+
+# Experiment metadata
+experiment_name: "latefusion_los"
+description: "Late Fusion model training for LOS task on fold 1"
+
+# Model configuration
+model: latefusion
+task: los
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# Late Fusion specific parameters
+ehr_encoder: transformer
+cxr_encoder: resnet50
+hidden_size: 256
+ehr_dropout: 0.2
+ehr_n_layers: 1
+ehr_n_head: 4
+pretrained: true
+unimodal_loss: false
+
+# Task-specific parameters
+num_classes: 7
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

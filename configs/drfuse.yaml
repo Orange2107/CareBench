@@ -1,0 +1,52 @@
+model_name: drfuse
+
+# Encoder Selection Parameters
+ehr_encoder: transformer  # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50     # Options: 'resnet50'
+
+hidden_size: 256
+ehr_dropout: 0.1
+ehr_n_head: 4
+ehr_n_layers_distinct: 1
+ehr_n_layers_feat: 1
+ehr_n_layers_shared: 1
+
+# LSTM-specific parameters (used when ehr_encoder = 'lstm')
+ehr_lstm_bidirectional: true
+ehr_lstm_num_layers: 2
+
+fusion_method: concate
+# matched: false
+input_dim: 498  # Default EHR dimension
+num_classes: 25
+epochs: 50
+patience: 10
+pretrained: true  # Whether to use pretrained model weights
+
+# Disentanglement & fusion-specific parameters
+logit_average: true
+attn_fusion: mid
+disentangle_loss: jsd
+
+lambda_disentangle_shared: 1.0
+lambda_disentangle_ehr: 1.0
+lambda_disentangle_cxr: 1.0
+
+lambda_pred_ehr: 1.0
+lambda_pred_cxr: 1.0
+lambda_pred_shared: 1.0
+
+lambda_attn_aux: 1.0
+
+# Optimizer hyperparams (still model-specific)
+lr: 0.0001
+wd: 0.0
+
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: true
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True

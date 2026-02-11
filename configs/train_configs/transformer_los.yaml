@@ -1,0 +1,50 @@
+# Transformer training configuration for LOS task
+# Parameters extracted from los_train_scripts/train_transformer.sh
+
+# Experiment metadata
+experiment_name: "transformer_los"
+description: "Transformer model training for LOS task on fold 1"
+
+# Model configuration
+model: transformer
+task: los
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# Transformer specific parameters
+d_model: 256
+n_head: 4
+n_layers: 1
+dropout: 0.2
+
+# Task-specific parameters
+num_classes: 7
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

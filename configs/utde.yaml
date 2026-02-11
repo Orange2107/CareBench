@@ -1,0 +1,60 @@
+# ICML UDTE Model Configuration
+model_name: 'utde'
+
+# -----------------------
+# Task Configuration
+# -----------------------
+task: 'phenotype'
+num_classes: 25
+input_dim: 49
+
+# -----------------------
+# Encoder Selection
+# -----------------------
+ehr_encoder: 'transformer'        # lstm, transformer
+cxr_encoder: 'resnet50'    # resnet50
+pretrained: true
+
+# -----------------------
+# EHR Encoder Parameters
+# -----------------------
+# LSTM specific
+ehr_num_layers: 1
+ehr_bidirectional: true   
+ehr_hidden_dim: 256
+
+# Transformer specific
+ehr_n_head: 4
+
+# -----------------------
+# UTDE Architecture
+# -----------------------
+embed_dim: 256             # Hidden dimension for both EHR and CXR
+embed_time: 64             # Time embedding dimension
+num_heads: 4               # Multi-head attention heads
+tt_max: 500                 # Maximum time steps
+cross_layers: 1            # Cross-modal transformer layers
+dropout: 0.2
+
+# -----------------------
+# Training Configuration
+# -----------------------
+mode: 'train'
+batch_size: 16
+epochs: 50
+patience: 10
+lr: 0.0001
+
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
+
+# python  main.py --model utde --mode train --task mortality --matched
+
+
+

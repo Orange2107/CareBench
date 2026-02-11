@@ -1,0 +1,68 @@
+# DrFuse training configuration for LOS (Length of Stay) task
+# This config replaces the los_train_scripts/train_drfuse.sh script functionality
+
+# Experiment metadata
+experiment_name: "drfuse_los"
+description: "DrFuse model training for length of stay prediction on fold 1 with multiple seeds"
+
+# Model configuration
+model: drfuse
+task: los
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]  # GPU device number
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null  # Set to "matched_to_full" or "full_to_matched" if needed
+
+# DrFuse specific parameters
+ehr_encoder: transformer    # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50       # Options: 'resnet50'
+hidden_size: 256            # Hidden dimension       
+ehr_dropout: 0.2            # EHR encoder dropout
+ehr_n_head: 4               # Number of attention heads for transformer
+ehr_n_layers_feat: 1        # Number of feature extraction layers
+ehr_n_layers_shared: 1      # Number of shared representation layers
+ehr_n_layers_distinct: 1    # Number of distinct representation layers
+pretrained: true            # Use pretrained CXR encoder
+disentangle_loss: jsd       # Options: 'mse', 'jsd', 'adc', 'triplet'
+attn_fusion: mid            # Options: 'early', 'mid', 'late'
+logit_average: true         # Use logit averaging for shared features
+
+# Loss weighting parameters (optimized for LOS task)
+lambda_pred_shared: 0.05589422583241736     # Shared prediction loss weight
+lambda_pred_ehr: 1.2271897893716792        # EHR prediction loss weight
+lambda_pred_cxr: 0.02406194738723764         # CXR prediction loss weight 
+lambda_disentangle_shared: 0.011549744023618514  # Shared disentanglement loss weight
+lambda_disentangle_ehr: 1.9845010029895234     # EHR disentanglement loss weight
+lambda_disentangle_cxr: 1.238788204159156     # CXR disentanglement loss weight
+lambda_attn_aux: 1.0543015739141945        # Attention auxiliary loss weight 
+
+# Task-specific parameters
+num_classes: 7   # LOS is a 7-class classification task (different length ranges)
+input_dim: 49    # EHR feature dimension
+
+# Seeds configuration (including 42)
+seeds: [42, 123, 1234]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+use_triplet: false
+
+# Fairness evaluation (optional)
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

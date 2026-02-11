@@ -1,0 +1,73 @@
+# MMTM Model Configuration
+model_name: mmtm
+
+# -----------------------
+# Encoder Selection
+# -----------------------
+ehr_encoder: lstm  # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50  # Options: 'resnet50'
+
+# -----------------------
+# EHR Encoder Params
+# -----------------------
+# For LSTM encoder
+ehr_num_layers: 2
+ehr_bidirectional: false  # Keep false for MMTM compatibility
+
+# For Transformer encoder
+ehr_n_head: 8
+ehr_n_layers: 2
+
+# -----------------------
+# MMTM Fusion Params
+# -----------------------
+mmtm_ratio: 4  # MMTM compression ratio
+layer_after: -1  # Which layer to apply MMTM fusion (-1 for all layers)
+
+# -----------------------
+# Model Structure Params
+# -----------------------
+dim: 256  # Hidden dimension
+input_dim: 498  # EHR input dimension
+num_classes: 25
+
+# -----------------------
+# Training Config
+# -----------------------
+mode: train
+task: phenotype
+batch_size: 16
+epochs: 50
+lr: 0.0001
+dropout: 0.2
+patience: 10
+
+# -----------------------
+# Data Config
+# -----------------------
+data_pairs: paired_ehr_cxr
+
+# -----------------------
+# Load / Resume Options
+# -----------------------
+pretrained: true  # Whether to use pretrained weights for CXR encoder
+load_state: null
+load_state_cxr: null
+load_state_ehr: null
+
+# -----------------------
+# Alignment / Loss Options
+# -----------------------
+align: 0.0  # Disable alignment loss
+
+# Label Weight Configuration for Class Imbalance
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
+
+

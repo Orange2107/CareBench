@@ -1,0 +1,72 @@
+# ShaSpec Model Configuration
+model_name: shaspec
+
+# -----------------------
+# Task Configuration
+# -----------------------
+task: phenotype          # phenotype or mortality
+num_classes: 25          # phenotype: 6, mortality: 1
+
+# -----------------------
+# Encoder Selection
+# -----------------------
+ehr_encoder: transformer        # lstm, transformer
+cxr_encoder: resnet50    # resnet50
+pretrained: true         # Use pretrained weights for CXR encoder
+
+# -----------------------
+# EHR Encoder Parameters
+# -----------------------
+# LSTM specific
+ehr_num_layers: 1        # Number of LSTM layers
+ehr_bidirectional: true  # Bidirectional LSTM
+
+# Transformer specific  
+ehr_n_head: 4           # Number of attention heads
+ehr_n_layers: 1         # Number of transformer layers
+
+# -----------------------
+# Model Architecture
+# -----------------------
+input_dim: 498          # EHR feature dimension
+dim: 256                # Hidden feature dimension
+dropout: 0.2            # Dropout rate
+
+# -----------------------
+# ShaSpec Loss Weights
+# -----------------------
+weight_std: true        # Use weight standardization
+alpha: 0.1              # Shared feature consistency loss weight
+beta: 0.02              # Domain classification loss weight
+
+# -----------------------
+# Shared Transformer Encoder
+# -----------------------
+nhead: 4                # Number of attention heads
+num_layers: 1           # Number of transformer layers
+max_seq_len: 500        # Maximum sequence length
+
+# -----------------------
+# Training Configuration
+# -----------------------
+mode: train
+batch_size: 16
+epochs: 50
+lr: 0.0001
+patience: 10
+
+# Label Weight Configuration for Class Imbalance
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
+
+# -----------------------
+# finetune parameters
+# -----------------------
+# alpha: 0.05、0.1、0.2
+# beta: 0.05、0.1、0.2

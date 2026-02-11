@@ -1,0 +1,61 @@
+# FlexMoE training configuration for mortality task
+# Parameters extracted from scripts/train_flexmoe.sh
+
+# Experiment metadata
+experiment_name: "flexmoe_mortality"
+description: "FlexMoE model training for mortality task on fold 1"
+
+# Model configuration
+model: flexmoe
+task: mortality
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# FlexMoE specific parameters
+ehr_encoder: transformer
+cxr_encoder: resnet50
+hidden_dim: 256
+num_patches: 16
+num_layers: 1
+num_layers_pred: 1
+num_experts: 8
+num_routers: 2
+top_k: 4
+num_heads: 4
+gate_loss_weight: 0.1
+dropout: 0.2
+pretrained: true
+ehr_n_head: 4
+ehr_n_layers: 1
+
+# Task-specific parameters
+num_classes: 1
+input_dim: 498
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

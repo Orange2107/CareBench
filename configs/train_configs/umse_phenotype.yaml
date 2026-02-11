@@ -1,0 +1,56 @@
+# UMSE training configuration for phenotype task
+# Parameters extracted from scripts/train_umse.sh
+
+# Experiment metadata
+experiment_name: "umse_phenotype"
+description: "UMSE model training for phenotype task on fold 1"
+
+# Model configuration
+model: umse
+task: phenotype
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [3]
+pretrained: true 
+
+# Data configuration
+matched: true
+use_demographics: false
+use_triplet: true
+cross_eval: null
+
+# UMSE specific parameters
+d_model: 256
+variables_num: 49
+num_layers: 1
+num_heads: 4
+n_modality: 2
+bottlenecks_n: 1
+max_ehr_len: 500
+dropout: 0.2
+
+# Task-specific parameters
+num_classes: 25
+input_dim: 49
+
+# Seeds configuration
+seeds: [42, 123, 1234]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['admission_type', 'age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

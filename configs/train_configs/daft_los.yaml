@@ -1,0 +1,57 @@
+# DAFT training configuration for LOS task
+# Parameters extracted from los_train_scripts/train_daft.sh
+
+# Experiment metadata
+experiment_name: "daft_los"
+description: "DAFT model training for LOS task on fold 1"
+
+# Model configuration
+model: daft
+task: los
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+num_workers: 1
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# DAFT specific parameters
+ehr_encoder: transformer
+cxr_encoder: resnet50
+dim: 256
+dropout: 0.2
+layer_after: -1
+daft_activation: linear
+data_pairs: paired_ehr_cxr
+pretrained: true
+ehr_n_head: 4
+ehr_n_layers: 1
+
+# Task-specific parameters
+num_classes: 7
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

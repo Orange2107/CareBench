@@ -1,0 +1,62 @@
+# InfoReg training configuration for los task on fold 1
+# This config replaces the train_inforeg.sh script functionality
+
+# Experiment metadata
+experiment_name: "inforeg_los"
+description: "InfoReg model training for los prediction on fold 1 with multiple seeds"
+
+# Model configuration
+model: inforeg
+task: los
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [1]  # GPU device number
+
+# Data configuration
+matched: true
+use_demographics: false
+cross_eval: null  # Set to "matched_to_full" or "full_to_matched" if needed
+
+# InfoReg specific parameters
+ehr_encoder: transformer    # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50        # Options: 'resnet50'
+hidden_size: 256             # Hidden feature dimension
+ehr_dropout: 0.2             # Dropout rate for EHR encoder
+ehr_n_head: 4                # Number of attention heads for transformer
+ehr_n_layers: 1              # Number of transformer layers
+ehr_num_layers: 1            # Number of LSTM layers (when ehr_encoder='lstm')
+ehr_bidirectional: true      # Bidirectional LSTM (when ehr_encoder='lstm')
+pretrained: true             # Use pretrained CXR encoder
+
+# InfoReg-specific regularization parameters
+info_k_threshold: 0.0745027168341172  # Threshold for k value to apply regulation
+info_ehr_scale: 0.5021360750846741      # Scale for EHR gradient reduction (higher = stronger slowdown)
+info_cxr_scale: 0.0674080103363619    # Scale for CXR gradient reduction (balanced with EHR)
+info_history: 15                        # History length for FIM tracking
+
+# Task-specific parameters
+num_classes: 25
+input_dim: 49
+
+# Seeds configuration (including 42)
+seeds: [42, 123, 1234]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+num_workers: 4
+
+# Fairness evaluation (optional)
+compute_fairness: true
+fairness_attributes: ['admission_type', 'age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+use_label_weights: false

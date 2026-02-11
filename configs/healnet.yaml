@@ -1,0 +1,57 @@
+model_name: healnet
+
+# -----------------------
+# Model Architecture & Fusion Parameters
+# -----------------------
+n_modalities: 2              # Number of modalities (EHR and CXR)
+depth: 3                  # Number of fusion layers
+latent_channels: 256      # Number of latent tokens
+latent_dim: 256          # Dimension of latent tokens
+cross_heads: 4           # Number of cross-attention heads
+latent_heads: 4          # Number of self-attention heads
+cross_dim_head: 64       # Dimension of each cross-attention head
+latent_dim_head: 64      # Dimension of each self-attention head
+self_per_cross_attn: 1   # Self-attention layers per cross-attention
+weight_tie_layers: true # Whether to share weights across layers
+snn: true                # Whether to use self-normalizing networks
+fourier_encode_data: true       # Whether to use Fourier positional encoding
+num_freq_bands: 2               # Number of frequency bands
+max_freq: 10.0                  # Maximum frequency for encoding
+final_classifier_head: true     # Whether to add final classification head
+attn_dropout: 0.2               # Dropout rate for attention layers
+ff_dropout: 0.2                 # Dropout rate for feed-forward layers
+
+# -----------------------
+# Input/Output Dimensions
+# -----------------------
+input_dim: 49            # EHR dimension
+num_classes: 25           # Number of output classes
+
+# -----------------------
+# Training Config
+# -----------------------
+mode: train
+batch_size: 4
+epochs: 50
+patience: 10
+lr: 0.0001
+dropout: 0.2
+
+data_pairs: paired_ehr_cxr    
+pretrained: true              
+
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ['admission_type', 'age', 'gender', 'race']
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
+
+# -----------------------
+# finetune parameters
+# -----------------------
+# depth: 1、2、3
+# num_freq_bands: 1、2、4               # Number of frequency bands
+# max_freq: 5、10.0   

@@ -1,0 +1,63 @@
+# AUG (Adaptive Classifier Assignment + Sustained Boosting) Model Configuration
+model_name: aug
+
+# -----------------------
+# Task Configuration
+# -----------------------
+task: phenotype         # Options: 'phenotype', 'mortality', 'los'
+num_classes: 25         # phenotype: 25, mortality: 1, los: 7
+
+# -----------------------
+# Encoder Selection
+# -----------------------
+ehr_encoder: transformer   # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50      # Options: 'resnet50', 'swin_s', 'swin_t'
+pretrained: true           # Use pretrained weights for CXR encoder
+
+# -----------------------
+# Model Architecture
+# -----------------------
+input_dim: 49             # EHR input dimension 
+hidden_size: 256           # Hidden feature dimension for both modalities
+
+# -----------------------
+# EHR Encoder Parameters
+# -----------------------
+# LSTM specific (when ehr_encoder='lstm')
+ehr_num_layers: 1          # Number of LSTM layers
+ehr_bidirectional: true    # Bidirectional LSTM
+
+# Transformer specific (when ehr_encoder='transformer')
+ehr_n_head: 4              # Number of attention heads
+ehr_n_layers: 1            # Number of transformer layers
+ehr_dropout: 0.2           # Dropout rate for EHR encoder
+
+# -----------------------
+# AUG-Specific Parameters
+# -----------------------
+aug_merge_alpha: 0.6       # Fusion weight: pred = alpha*ehr + (1-alpha)*cxr
+aug_lambda: 1.0            # Target performance ratio (ehr_score / cxr_score = 1.0 for balance)
+aug_margin: 0.01           # Margin for triggering layer addition
+aug_layer_check_interval: 5  # Check and add layers every N epochs
+aug_classifier_hidden_dim: 256  # Hidden dimension for modality-specific classifiers
+
+# -----------------------
+# Training Configuration
+# -----------------------
+batch_size: 16
+epochs: 50
+lr: 0.0001                 # Learning rate
+patience: 10               # Early stopping patience
+
+# -----------------------
+# Label Weight Configuration
+# -----------------------
+# use_label_weights: false   # Enable/disable label weights for class imbalance
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse'
+use_label_weights: false
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True

@@ -1,0 +1,60 @@
+# ShaSpec training configuration for mortality task
+# Parameters extracted from scripts/train_shaspec.sh
+
+# Experiment metadata
+experiment_name: "shaspec_mortality"
+description: "ShaSpec model training for mortality task on fold 1"
+
+# Model configuration
+model: shaspec
+task: mortality
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# ShaSpec specific parameters
+ehr_encoder: transformer
+cxr_encoder: resnet50
+dim: 256
+dropout: 0.2
+alpha: 0.01
+beta: 0.16088171387061506
+nhead: 4
+num_layers: 1
+max_seq_len: 500
+ehr_n_head: 4
+ehr_n_layers: 1
+weight_std: true
+pretrained: true
+use_label_weights: true
+
+# Task-specific parameters
+num_classes: 1
+input_dim: 498
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

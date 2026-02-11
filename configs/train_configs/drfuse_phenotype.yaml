@@ -1,0 +1,67 @@
+# DrFuse training configuration for phenotype task on fold 1
+# This config replaces the train_drfuse.sh script functionality
+
+# Experiment metadata
+experiment_name: "drfuse_phenotype"
+description: "DrFuse model training for phenotype prediction on fold 1 with multiple seeds"
+
+# Model configuration
+model: drfuse
+task: phenotype
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]  # GPU device number
+
+# Data configuration
+matched: true
+use_demographics: false
+cross_eval: null  # Set to "matched_to_full" or "full_to_matched" if needed
+
+# DrFuse specific parameters
+ehr_encoder: transformer    # Options: 'lstm', 'transformer'
+cxr_encoder: resnet50       # Options: 'resnet50'
+hidden_size: 256            # Hidden dimension       
+ehr_dropout: 0.2            # EHR encoder dropout
+ehr_n_head: 4               # Number of attention heads for transformer
+ehr_n_layers_feat: 1        # Number of feature extraction layers
+ehr_n_layers_shared: 1      # Number of shared representation layers
+ehr_n_layers_distinct: 1    # Number of distinct representation layers
+pretrained: true            # Use pretrained CXR encoder
+disentangle_loss: jsd       # Options: 'mse', 'jsd', 'adc', 'triplet'
+attn_fusion: mid            # Options: 'early', 'mid', 'late'
+logit_average: true         # Use logit averaging for shared features
+
+# Loss weighting parameters
+lambda_pred_shared: 0.8842796387128827     # Shared prediction loss weight
+lambda_pred_ehr: 1.424219150474717        # EHR prediction loss weight
+lambda_pred_cxr: 0.2306727334155444        # CXR prediction loss weight 
+lambda_disentangle_shared: 0.47960999030042206  # Shared disentanglement loss weight
+lambda_disentangle_ehr: 0.5195759622950348     # EHR disentanglement loss weight
+lambda_disentangle_cxr: 0.09046284318147839     # CXR disentanglement loss weight
+lambda_attn_aux: 0.41142121264743853        # Attention auxiliary loss weight 
+
+# Task-specific parameters
+num_classes: 25
+input_dim: 49
+
+# Seeds configuration (including 42)
+seeds: [42, 123, 1234]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+use_triplet: false
+
+# Fairness evaluation (optional)
+compute_fairness: true
+fairness_attributes: ['admission_type', 'age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true

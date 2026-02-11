@@ -1,0 +1,50 @@
+# MLHC UMSE Model Configuration
+model_name: umse
+
+# -----------------------
+# Model Architecture
+# -----------------------
+d_model: 256
+variables_num: 49  
+num_layers: 1
+batch_size: 16
+num_heads: 4
+n_modality: 2
+bottlenecks_n: 1
+dropout: 0.2
+max_ehr_len: 500
+num_classes: 25
+
+# -----------------------
+# Task Configuration
+# -----------------------
+task: phenotype  # or mortality
+pretrained: true
+
+
+# -----------------------
+# Training Config
+# -----------------------
+mode: train
+# batch_size: 32
+epochs: 50
+patience: 10
+lr: 0.0001
+use_triplet: true
+# t_0: 50
+# t_up: 5
+# t_mult: 2
+# gamma: 0.5
+# weight_decay: 1.0e-6
+
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
+
+# python  main.py --model utde --mode train --task mortality --matched
+

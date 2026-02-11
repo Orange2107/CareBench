@@ -1,0 +1,61 @@
+# SMIL training configuration for mortality task
+# Parameters extracted from scripts/train_smil.sh
+
+# Experiment metadata
+experiment_name: "smil_mortality"
+description: "SMIL model training for mortality task on fold 1"
+
+# Model configuration
+model: smil
+task: mortality
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# SMIL specific parameters
+ehr_encoder: transformer
+cxr_encoder: resnet50
+hidden_dim: 256
+inner_loop: 2
+lr_inner: 0.0007631400164186543
+mc_size: 20
+alpha: 0.05
+beta: 0.08821668183456577
+temperature: 3.0
+n_clusters: 10
+dropout: 0.2
+pretrained: true
+ehr_n_head: 4
+ehr_n_layers: 1
+max_len: 500
+
+# Task-specific parameters
+num_classes: 1
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

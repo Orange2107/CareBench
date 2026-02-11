@@ -1,0 +1,13 @@
+CXR K-means Clustering Metadata
+========================================
+Generated at: 2025-06-29 15:39:33.926972
+CXR encoder: resnet50
+Pretrained: True
+Hidden dimension: 256
+Task: phenotype
+Fold: 3
+Data type: full
+Number of clusters: 10
+Use MiniBatch: True
+Random state: 42
+Cluster centers shape: (10, 256)

@@ -1,0 +1,65 @@
+# HealNet training configuration for mortality task
+# Parameters extracted from scripts/train_healnet.sh
+
+# Experiment metadata
+experiment_name: "healnet_mortality"
+description: "HealNet model training for mortality task on fold 1"
+
+# Model configuration
+model: healnet
+task: mortality
+fold: 1
+
+# Training parameters
+batch_size: 4
+lr: 0.0001
+max_lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# HealNet specific parameters
+depth: 1
+latent_channels: 256
+latent_dim: 256
+cross_heads: 4
+latent_heads: 4
+cross_dim_head: 64
+latent_dim_head: 64
+self_per_cross_attn: 1
+weight_tie_layers: true
+snn: true
+fourier_encode_data: true
+num_freq_bands: 4
+max_freq: 5.0
+final_classifier_head: true
+attn_dropout: 0.2
+ff_dropout: 0.2
+dropout: 0.2
+pretrained: true
+
+# Task-specific parameters
+num_classes: 1
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

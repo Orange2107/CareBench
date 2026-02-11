@@ -1,0 +1,58 @@
+# MMTM training configuration for mortality task
+# Multi-Modal Transfer Module model
+
+# Experiment metadata
+experiment_name: "mmtm_mortality"
+description: "MMTM model training for mortality prediction on fold 1"
+
+# Model configuration
+model: mmtm
+task: mortality
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# MMTM specific parameters
+ehr_encoder: lstm
+cxr_encoder: resnet50
+ehr_num_layers: 2
+ehr_bidirectional: false
+ehr_n_head: 8
+ehr_n_layers: 2
+mmtm_ratio: 4
+layer_after: -1
+dim: 256
+dropout: 0.3
+pretrained: true
+align: 0.0
+
+# Task-specific parameters
+num_classes: 1
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

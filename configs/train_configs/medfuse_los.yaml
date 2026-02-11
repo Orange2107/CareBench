@@ -1,0 +1,51 @@
+# MEDFUSE training configuration for LOS task
+
+# Experiment metadata
+experiment_name: "medfuse_los"
+description: "MedFuse model training for LOS task on fold 1"
+
+# Model configuration
+model: medfuse
+task: los
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+# Data configuration
+matched: false
+use_demographics: false
+cross_eval: null
+
+# MedFuse specific parameters
+ehr_encoder: lstm
+cxr_encoder: resnet50
+hidden_size: 256
+ehr_dropout: 0.2
+pretrained: true
+fusion_method: concat
+
+# Task-specific parameters
+num_classes: 7
+input_dim: 49
+
+# Seeds configuration
+seeds: [42]
+
+# Additional training options
+save_checkpoint: true
+dev_run: false
+
+# Fairness evaluation
+compute_fairness: true
+fairness_attributes: ['age', 'race', 'gender']
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+# Predictions saving
+save_predictions: true
+

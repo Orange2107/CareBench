@@ -1,0 +1,28 @@
+model_name: transformer
+
+# Transformer Model Params
+d_model: 256
+n_head: 4
+n_layers: 1
+dropout: 0.2
+max_len: 500
+input_dim: 49
+num_classes: 25
+
+# Training Config
+task: phenotype
+batch_size: 16
+epochs: 50
+patience: 10
+lr: 0.0001
+weight_decay: 0.0001 
+
+# Label Weight Configuration for Class Imbalance
+use_label_weights: false  # Enable/disable label weights
+label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'
+
+# Fairness evaluation configuration
+compute_fairness: True
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
+fairness_intersectional: True
