@@ -160,7 +160,7 @@ class SMIL(BaseFuseTrainer):
             # Reconstruct CXR features using EHR features
             pred, f, f1, cxr_features = encoder_func(batch, mode='one', 
                                                    cxr_mean=self.cxr_mean,
-                                                   meta_train=True)  # Add noise during training
+                                                   meta_train=batch.get('_meta_train', True))
         else:
             # Use complete modalities
             pred, f, f1, cxr_features = encoder_func(batch, mode='two',
@@ -168,8 +168,54 @@ class SMIL(BaseFuseTrainer):
         
         return pred, f, f1, cxr_features
 
+    def _normalize_has_cxr(self, has_cxr, device):
+        if has_cxr is None:
+            return None
+        if not isinstance(has_cxr, torch.Tensor):
+            has_cxr = torch.as_tensor(has_cxr, device=device)
+        return has_cxr.view(-1).bool().to(device)
+
+    def _select_batch(self, batch, indices):
+        subset = {}
+        for key, value in batch.items():
+            if key == '_meta_train':
+                continue
+            if isinstance(value, torch.Tensor):
+                subset[key] = value[indices]
+            else:
+                subset[key] = value
+        return subset
+
+    def _build_missing_view(self, batch, meta_train):
+        missing_batch = {}
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor):
+                missing_batch[key] = value.clone()
+            else:
+                missing_batch[key] = value
+
+        if 'cxr_imgs' in missing_batch:
+            missing_batch['cxr_imgs'] = torch.zeros_like(missing_batch['cxr_imgs'])
+        if 'has_cxr' in missing_batch:
+            missing_batch['has_cxr'] = torch.zeros_like(missing_batch['has_cxr'])
+        missing_batch['_meta_train'] = meta_train
+        return missing_batch
+
+    def _select_complete_indices(self, candidate_indices, has_cxr):
+        present_mask = has_cxr[candidate_indices]
+        return candidate_indices[present_mask]
+
     def forward(self, batch):
-        pred, f, f1, cxr_features = self.encoder(batch, mode='two')
+        has_cxr = self._normalize_has_cxr(batch.get('has_cxr'), batch['ehr_ts'].device)
+        if has_cxr is None or torch.all(has_cxr):
+            pred, f, f1, cxr_features = self.encoder(batch, mode='two')
+        else:
+            pred, f, f1, cxr_features = self.encoder(
+                batch,
+                mode='one',
+                cxr_mean=self.cxr_mean,
+                meta_train=False
+            )
         loss = self.criterion.meta_forward(pred, batch['labels'].squeeze())
         
         return {
@@ -194,28 +240,30 @@ class SMIL(BaseFuseTrainer):
         # Ensure seq_len is a tensor
         if not isinstance(batch['seq_len'], torch.Tensor):
             batch['seq_len'] = torch.tensor(batch['seq_len'], dtype=torch.int64)
+        if not isinstance(batch['has_cxr'], torch.Tensor):
+            batch['has_cxr'] = torch.tensor(batch['has_cxr'], dtype=torch.float32)
+
+        has_cxr = self._normalize_has_cxr(batch['has_cxr'], batch['ehr_ts'].device)
 
         # Randomly split data
         indices = torch.randperm(batch_size)
         train_indices = indices[:train_size]
         val_indices = indices[train_size:]
         
-        # Create meta-train and meta-val datasets
-        meta_train_split = {
-            'ehr_ts': batch['ehr_ts'][train_indices],
-            'seq_len': batch['seq_len'][train_indices],  
-            'cxr_imgs': batch['cxr_imgs'][train_indices],
-            'has_cxr': batch['has_cxr'][train_indices],
-            'labels': batch['labels'][train_indices]
-        }
-        
-        meta_val_split = {
-            'ehr_ts': batch['ehr_ts'][val_indices],
-            'seq_len': batch['seq_len'][val_indices],  
-            'cxr_imgs': batch['cxr_imgs'][val_indices],
-            'has_cxr': batch['has_cxr'][val_indices],
-            'labels': batch['labels'][val_indices]
-        }
+        meta_train_base = self._select_batch(batch, train_indices)
+        meta_train_split = self._build_missing_view(meta_train_base, meta_train=True)
+
+        complete_val_indices = self._select_complete_indices(val_indices, has_cxr)
+        if len(complete_val_indices) == 0:
+            complete_val_indices = self._select_complete_indices(train_indices, has_cxr)
+        if len(complete_val_indices) == 0:
+            complete_val_indices = has_cxr.nonzero(as_tuple=True)[0]
+        if len(complete_val_indices) == 0:
+            raise ValueError("SMIL training requires at least one complete CXR sample in the batch for meta-val clean.")
+
+        meta_val_clean_split = self._select_batch(batch, complete_val_indices)
+        meta_val_clean_split['_meta_train'] = False
+        meta_val_noised_split = self._build_missing_view(meta_val_clean_split, meta_train=False)
         
         # Meta-training inner loop
         loss_meta_train = 0.
@@ -260,14 +308,14 @@ class SMIL(BaseFuseTrainer):
         # Meta-validation with missing CXR
         pred_meta_val_noised, f_meta_val_noised1, f_meta_val_noised2, cxr_mean_val_noised = self._functional_forward(
             params_star,
-            meta_val_split,
+            meta_val_noised_split,
             mode='one'
         )
         
         # Meta-validation with complete modalities
         pred_meta_val_clean, f_meta_val_clean1, f_meta_val_clean2, cxr_mean_val_clean = self._functional_forward(
             params_star,
-            meta_val_split,
+            meta_val_clean_split,
             mode='two'
         )
         
@@ -284,7 +332,7 @@ class SMIL(BaseFuseTrainer):
             f_meta_val_noised2,
             pred_meta_val_noised,
             pred_meta_val_clean,
-            meta_val_split['labels'].squeeze()
+            meta_val_clean_split['labels'].squeeze()
         )
         
         # Total loss
@@ -292,13 +340,13 @@ class SMIL(BaseFuseTrainer):
         
         # Record metrics
         self.log('train/meta_train_loss', loss_meta_train, on_epoch=True, batch_size=train_size, sync_dist=True)
-        self.log('train/meta_val_loss', loss_meta_val, on_epoch=True, batch_size=val_size, sync_dist=True)
-        self.log('train/cxr_mean_mse', cxr_mean_val_mse, on_epoch=True, batch_size=val_size, sync_dist=True)
+        self.log('train/meta_val_loss', loss_meta_val, on_epoch=True, batch_size=meta_val_clean_split['labels'].shape[0], sync_dist=True)
+        self.log('train/cxr_mean_mse', cxr_mean_val_mse, on_epoch=True, batch_size=meta_val_clean_split['labels'].shape[0], sync_dist=True)
         
         return {
             "loss": total_loss,
             "pred": pred_meta_val_clean.detach(),
-            "labels": meta_val_split['labels'].squeeze().detach()
+            "labels": meta_val_clean_split['labels'].squeeze().detach()
         }
 
     def configure_optimizers(self):

@@ -173,7 +173,11 @@ class SMILEncoder(nn.Module):
         # ===== CXR Encoder Selection using Factory =====
         cxr_params = {
             'hidden_size': hparams.get('hidden_dim', 256),
-            'pretrained': pretrained
+            'pretrained': pretrained,
+            'hf_model_id': hparams.get('hf_model_id', 'codewithdark/vit-chest-xray'),
+            'freeze_vit': hparams.get('freeze_vit', True),
+            'bias_tune': hparams.get('bias_tune', False),
+            'partial_layers': hparams.get('partial_layers', 0),
         }
         
         # Create CXR encoder
@@ -288,8 +292,15 @@ class SMILEncoder(nn.Module):
             print(f"  - CXR feature dim: {self.cxr_feat_dim}")
             print(f"  - Total feature dim: {self.total_feat_dim}")
 
-    def _extract_features(self, batch):
-        """Extract features using configurable encoders"""
+    def _normalize_has_cxr(self, batch: Dict[str, torch.Tensor]) -> Optional[torch.Tensor]:
+        has_cxr = batch.get('has_cxr')
+        if has_cxr is None:
+            return None
+        if not isinstance(has_cxr, torch.Tensor):
+            has_cxr = torch.as_tensor(has_cxr, device=batch['ehr_ts'].device)
+        return has_cxr.view(-1).bool().to(batch['ehr_ts'].device)
+
+    def _extract_ehr_features(self, batch):
         # Extract EHR features
         ehr_output = self.ehr_encoder(batch['ehr_ts'], batch['seq_len'], output_prob=False)
         if isinstance(ehr_output, tuple):
@@ -297,12 +308,36 @@ class SMILEncoder(nn.Module):
         else:
             ehr_features = ehr_output
         ehr_features = ehr_features.view(ehr_features.size(0), -1)
-        
-        # Extract CXR features  
-        cxr_features = self.cxr_encoder(batch['cxr_imgs'])
-        cxr_features = cxr_features.view(cxr_features.size(0), -1)
-        
-        return ehr_features, cxr_features
+
+        return ehr_features
+
+    def _extract_cxr_features(self, batch, has_cxr: Optional[torch.Tensor] = None, skip_missing: bool = False):
+        if not skip_missing:
+            cxr_features = self.cxr_encoder(batch['cxr_imgs'])
+            return cxr_features.view(cxr_features.size(0), -1)
+
+        batch_size = batch['cxr_imgs'].size(0)
+        cxr_features = batch['cxr_imgs'].new_zeros((batch_size, self.cxr_feat_dim))
+
+        if has_cxr is None:
+            has_cxr = self._normalize_has_cxr(batch)
+
+        if has_cxr is None:
+            raise ValueError("has_cxr is required when skip_missing=True")
+
+        present_idx = has_cxr.nonzero(as_tuple=True)[0]
+        if len(present_idx) > 0:
+            present_features = self.cxr_encoder(batch['cxr_imgs'][present_idx])
+            cxr_features[present_idx] = present_features.view(present_features.size(0), -1)
+
+        return cxr_features
+
+    def _extract_features(self, batch, skip_missing: bool = False):
+        """Extract features using configurable encoders"""
+        has_cxr = self._normalize_has_cxr(batch)
+        ehr_features = self._extract_ehr_features(batch)
+        cxr_features = self._extract_cxr_features(batch, has_cxr=has_cxr, skip_missing=skip_missing)
+        return ehr_features, cxr_features, has_cxr
     
     def forward(self, batch: Dict[str, torch.Tensor], cxr_mean=None, noise_layer=['fc0','fc1','fc2'], meta_train=True, mode='one') -> Dict[str, torch.Tensor]:
         if mode == 'one':
@@ -310,11 +345,11 @@ class SMILEncoder(nn.Module):
             assert noise_layer is not None
             
             # Extract features using configurable encoders
-            ehr_features, cxr_features = self._extract_features(batch)
+            ehr_features, cxr_features, has_cxr = self._extract_features(batch, skip_missing=True)
             
             # Handle missing modalities
-            if batch['has_cxr'].sum() < batch['has_cxr'].numel():  # If there are missing values
-                missing_idx = (batch['has_cxr'] == 0).nonzero(as_tuple=True)[0]
+            if has_cxr is not None and has_cxr.sum() < has_cxr.numel():
+                missing_idx = (~has_cxr).nonzero(as_tuple=True)[0]
                 if len(missing_idx) > 0:
                     fc0 = ehr_features[missing_idx]
                     if 'fc0' in noise_layer:
@@ -343,8 +378,12 @@ class SMILEncoder(nn.Module):
             return pred, ehr_features, x, cxr_features
             
         elif mode == 'two':
+            has_cxr = self._normalize_has_cxr(batch)
+            if has_cxr is not None and not torch.all(has_cxr):
+                raise ValueError("SMIL mode='two' requires complete CXR inputs.")
+
             # Extract features using configurable encoders
-            ehr_features, cxr_features = self._extract_features(batch)
+            ehr_features, cxr_features, _ = self._extract_features(batch, skip_missing=False)
             
             # Fuse features
             combined_features = torch.cat([ehr_features, cxr_features], dim=1)

@@ -24,7 +24,11 @@ cross_eval: null
 
 # Late Fusion specific parameters
 ehr_encoder: transformer
-cxr_encoder: resnet50
+cxr_encoder: resnet50  # set hf_chexpert_vit to use HF ViT
+hf_model_id: codewithdark/vit-chest-xray
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 hidden_size: 256
 ehr_dropout: 0.2
 ehr_n_layers: 1

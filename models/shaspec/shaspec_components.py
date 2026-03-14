@@ -1,9 +1,10 @@
+import math
+
 import torch
-import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-import torchvision.models as models
+
+from ..base.base_encoder import create_cxr_encoder
 
 class LSTM(nn.Module):
     def __init__(self, input_dim=76, num_classes=1, hidden_dim=128, batch_first=True, dropout=0.0, layers=1):
@@ -76,16 +77,37 @@ class CXRModels(nn.Module):
         return preds, lossvalue_bce, visual_feats
 
 class MultiModalTransformerSharedEncoder(nn.Module):
-    def __init__(self, feat_dim=256, nhead=8, num_layers=3, dropout=0.1, 
-                 ehr_input_dim=498, max_seq_len=500):
+    def __init__(
+        self,
+        feat_dim=256,
+        nhead=8,
+        num_layers=3,
+        dropout=0.1,
+        ehr_input_dim=498,
+        max_seq_len=500,
+        cxr_encoder: str = 'resnet50',
+        pretrained: bool = True,
+        hf_model_id: str = 'codewithdark/vit-chest-xray',
+        freeze_vit: bool = True,
+        bias_tune: bool = False,
+        partial_layers: int = 0,
+    ):
         super(MultiModalTransformerSharedEncoder, self).__init__()
         self.feat_dim = feat_dim
         self.max_seq_len = max_seq_len
         assert feat_dim % nhead == 0, f"Feature dimension ({feat_dim}) must be divisible by nhead ({nhead})"
         self.ehr_projection = nn.Linear(ehr_input_dim, feat_dim)
-        self.cxr_backbone = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
-        self.cxr_backbone.fc = nn.Identity()
-        self.shared_cxr_projection = nn.Linear(2048, feat_dim)
+
+        self.cxr_backbone = create_cxr_encoder(
+            encoder_type=cxr_encoder,
+            hidden_size=feat_dim,
+            pretrained=pretrained,
+            hf_model_id=hf_model_id,
+            freeze_vit=freeze_vit,
+            bias_tune=bias_tune,
+            partial_layers=partial_layers,
+        )
+        self.shared_cxr_projection = nn.Identity()
         self.modality_embedding = nn.Parameter(torch.zeros(2, feat_dim))
         nn.init.normal_(self.modality_embedding, mean=0, std=0.02)
         self.pos_encoder = nn.Parameter(torch.zeros(1, max_seq_len, feat_dim))

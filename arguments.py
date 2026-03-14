@@ -34,12 +34,21 @@ def get_args() -> Namespace:
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--seed', type=int, nargs='+', default=[42], 
                        help='Random seed(s). Can specify multiple seeds: --seed 42 123 1234')
+    parser.add_argument('--seeds', type=str, default=None,
+                       help='Optional seed group tag for experiment naming, e.g. 42-123-1234')
     parser.add_argument('--save_checkpoint', action='store_true', default=True)
     parser.add_argument('--dev_run', action='store_true')
     parser.add_argument('--use_triplet', action='store_true')
     parser.add_argument('--config_root', type=str, default=os.path.join(os.path.dirname(__file__), 'configs'))
     parser.add_argument('--config_path', type=str, default=None, help='Custom YAML config path')
     parser.add_argument('--checkpoint_path', type=str, default=None, help='Checkpoint for test')
+
+    # Encoder selection (optional; can also be set in YAML)
+    parser.add_argument('--cxr_encoder', type=str, default=None, help='CXR encoder type (e.g., resnet50, hf_chexpert_vit)')
+    parser.add_argument('--hf_model_id', type=str, default=None, help='HuggingFace model id/path for hf_* encoders')
+    parser.add_argument('--freeze_vit', type=str, default=None, help='Freeze ViT parameters (true/false)')
+    parser.add_argument('--bias_tune', type=str, default=None, help='Enable bias-only tuning (true/false)')
+    parser.add_argument('--partial_layers', type=int, default=None, help='Unfreeze last N transformer layers')
 
     # Data splitting
     parser.add_argument('--matched', action='store_true', help='Use matched subset')
@@ -68,6 +77,14 @@ def get_args() -> Namespace:
                        help='Path to CXR k-means centers directory (for SMIL model). Default: models/smil/cxr_mean')
     parser.add_argument('--n_clusters', type=int, default=10, help='Number of clusters for CXR k-means (for SMIL model)')
 
+    # MedFuse-specific fusion parameters
+    parser.add_argument('--fusion_lstm_hidden_dim', type=int, default=None,
+                       help='Hidden dimension of the MedFuse fusion LSTM')
+    parser.add_argument('--fusion_lstm_layers', type=int, default=None,
+                       help='Number of layers in the MedFuse fusion LSTM')
+    parser.add_argument('--fusion_lstm_dropout', type=float, default=None,
+                       help='Inter-layer dropout of the MedFuse fusion LSTM')
+
     # Fairness-related
     parser.add_argument('--compute_fairness', action='store_true', help='Compute fairness metrics')
     parser.add_argument('--fairness_attributes', type=str, nargs='+',
@@ -88,8 +105,12 @@ def get_args() -> Namespace:
                        help='Base directory for experiments (e.g., ./experiments or ./experiments-m-m). If set and checkpoint_path not provided, will automatically find best checkpoint based on model/task/fold/seed.')
 
     parser.add_argument('--task', type=str, default='mortality',help='phenotype or mortality')
+    parser.add_argument('--use_phenotype9', action='store_true',
+                       help='Use the selected 9 phenotype labels instead of all 25')
     parser.add_argument('--patience', type=int, default=10, help='patience for early stopping')
     parser.add_argument('--log_dir', type=str, default=None, help='Log directory')
+    parser.add_argument('--experiment_name', type=str, default=None,
+                       help='Custom experiment version name (overrides auto-generated naming)')
 
     # Data paths
     parser.add_argument('--resized_cxr_root', type=str, default='/hdd/benchmark/benchmark_dataset/mimic_cxr_resized',
@@ -193,7 +214,8 @@ def get_args() -> Namespace:
             # Check if it's a store_true argument that was provided
             if arg_name in ['compute_fairness', 'fairness_intersectional', 'fairness_include_cxr', 
                            'save_predictions', 'use_demographics', 'use_triplet', 'matched', 
-                           'dev_run', 'save_checkpoint', 'demographics_in_model_input', 'use_label_weights']:
+                           'dev_run', 'save_checkpoint', 'demographics_in_model_input',
+                           'use_label_weights', 'use_phenotype9']:
                 cli_provided_args.add(arg_name)
     
     # Fix for action='store_true' arguments: manually set them from YAML config
@@ -201,7 +223,8 @@ def get_args() -> Namespace:
     # BUT: If CLI explicitly provided the flag, don't override it with YAML value
     store_true_args = ['compute_fairness', 'fairness_intersectional', 'fairness_include_cxr', 
                        'save_predictions', 'use_demographics', 'use_triplet', 'matched', 
-                       'dev_run', 'save_checkpoint', 'demographics_in_model_input', 'use_label_weights']
+                       'dev_run', 'save_checkpoint', 'demographics_in_model_input',
+                       'use_label_weights', 'use_phenotype9']
     for arg_name in store_true_args:
         if arg_name in yaml_config and isinstance(yaml_config[arg_name], bool):
             # Only override if CLI didn't explicitly provide this argument

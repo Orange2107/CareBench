@@ -1,11 +1,16 @@
 # SMIL Model Configuration
 model_name: smil
+tracked_hparams: [inner_loop, lr_inner, mc_size, alpha, beta, temperature, n_clusters, cxr_encoder]
 
 # -----------------------
 # Encoder Selection
 # -----------------------
 ehr_encoder: transformer        # lstm, transformer
-cxr_encoder: resnet50    # resnet50
+cxr_encoder: hf_chexpert_vit    # Options: 'resnet50', 'hf_chexpert_vit'
+hf_model_id: codewithdark/vit-chest-xray  # Used when cxr_encoder='hf_chexpert_vit'
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 pretrained: true
 
 # -----------------------
@@ -34,7 +39,10 @@ fusion_type: smil
 # Task Configuration
 # -----------------------
 task: phenotype  # or mortality
-num_classes: 25   # phenotype: 25, mortality: 1
+use_phenotype9: true
+matched: false
+cross_eval: null
+num_classes: 9   # phenotype: 9, mortality: 1
 vision_backbone: resnet50  # Legacy parameter, now handled by cxr_encoder
 layers: 2 # Legacy parameter, now handled by ehr_num_layers
 
@@ -89,4 +97,3 @@ fairness_intersectional: True
 # alpha: 0.05、0.1、0.2
 # beta: 0.05、0.1、0.2
 # temperature: 1.0、2.0、3.0
-

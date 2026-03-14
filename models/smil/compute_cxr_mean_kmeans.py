@@ -53,12 +53,20 @@ def parse_args():
     
     # Model parameters
     parser.add_argument('--cxr_encoder', type=str, default='resnet50',
-                       choices=['resnet50'],
+                       choices=['resnet50', 'hf_chexpert_vit', 'densenet121-imagenet', 'densenet121-res224-chex'],
                        help='CXR encoder type')
     parser.add_argument('--pretrained', action='store_true', default=True,
                        help='Use pretrained weights')
     parser.add_argument('--hidden_dim', type=int, default=256,
                        help='Hidden dimension for encoder')
+    parser.add_argument('--hf_model_id', type=str, default='codewithdark/vit-chest-xray',
+                       help='HF model id used when cxr_encoder=hf_chexpert_vit')
+    parser.add_argument('--freeze_vit', action='store_true', default=False,
+                       help='Freeze ViT backbone when cxr_encoder=hf_chexpert_vit')
+    parser.add_argument('--bias_tune', action='store_true', default=False,
+                       help='Enable bias tuning when cxr_encoder=hf_chexpert_vit')
+    parser.add_argument('--partial_layers', type=int, default=0,
+                       help='Unfreeze last N ViT layers when cxr_encoder=hf_chexpert_vit')
     
     # Training parameters
     parser.add_argument('--task', type=str, default='phenotype',
@@ -113,7 +121,11 @@ def create_cxr_feature_extractor(args, device):
     cxr_encoder = create_cxr_encoder(
         encoder_type=args.cxr_encoder,
         hidden_size=args.hidden_dim,
-        pretrained=args.pretrained
+        pretrained=args.pretrained,
+        hf_model_id=args.hf_model_id,
+        freeze_vit=args.freeze_vit,
+        bias_tune=args.bias_tune,
+        partial_layers=args.partial_layers,
     )
     
     cxr_encoder = cxr_encoder.to(device)
@@ -122,6 +134,8 @@ def create_cxr_feature_extractor(args, device):
     print(f'CXR encoder created: {args.cxr_encoder}')
     print(f'  - Pretrained: {args.pretrained}')
     print(f'  - Hidden dimension: {args.hidden_dim}')
+    if args.cxr_encoder == 'hf_chexpert_vit':
+        print(f'  - HF model id: {args.hf_model_id}')
     
     return cxr_encoder
 

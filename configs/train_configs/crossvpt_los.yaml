@@ -1,0 +1,58 @@
+# CrossVPT training configuration for los task
+
+experiment_name: "crossvpt_los"
+description: "CrossVPT training for los task on fold 1"
+
+model: crossvpt
+task: los
+fold: 1
+
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0]
+
+matched: false
+use_demographics: false
+cross_eval: null
+
+hidden_size: 256
+ehr_input_size: null
+ehr_n_head: 4
+ehr_n_layers_distinct: 1
+ehr_dropout: 0.2
+
+num_prompt_tokens: 5
+prompt_noise_std: 0.01
+prompt_token_dropout: 0.0
+
+vpt_feature: sup_vitb16_imagenet21k
+vpt_model_root: ''
+vpt_crop_size: 224
+freeze_vit: false
+
+final_pred_mode: concat
+fusion_variant: null
+pool_include: ['cls', 'prompt', 'image']
+
+loss_multi: 1.0
+loss_ehr: 1.0
+loss_cxr: 1.0
+aux_ehr_weight: 0.0
+
+num_classes: 7
+input_dim: 498
+
+seeds: [42]
+
+save_checkpoint: true
+dev_run: false
+
+compute_fairness: true
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]
+fairness_intersectional: true
+
+save_predictions: true
+

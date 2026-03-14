@@ -2,6 +2,11 @@ model_name: resnet
 
 # ResNet Model Params
 hidden_size: 256
+cxr_encoder: resnet50  # Options: 'resnet50', 'hf_chexpert_vit'
+hf_model_id: codewithdark/vit-chest-xray  # Used when cxr_encoder='hf_chexpert_vit'
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 pretrained: true
 dropout: 0.2
 num_classes: 25

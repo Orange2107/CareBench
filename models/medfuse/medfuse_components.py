@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torchvision.models.resnet import ResNet
 from .ehr_encoder import DisentangledEHRTransformer
+from ..base.base_encoder import create_cxr_encoder
 
 
 class Fusion(nn.Module):
@@ -16,16 +17,17 @@ class Fusion(nn.Module):
         self.args = args
         self.ehr_model = ehr_model
         self.cxr_model = cxr_model
+        self.fusion_lstm_hidden_dim = getattr(self.args, 'fusion_lstm_hidden_dim', None)
+        self.fusion_lstm_layers = int(getattr(self.args, 'fusion_lstm_layers', 1))
+        self.fusion_lstm_dropout = float(getattr(self.args, 'fusion_lstm_dropout', 0.0))
 
         target_classes = self.args.num_classes
         if self.args.drfuse_encoder:
             lstm_in = self.ehr_model.d_model
-            lstm_out = self.ehr_model.d_model
             projection_in = self.ehr_model.d_model
             feats_dim = 2 * self.ehr_model.d_model
         else:
             lstm_in = self.ehr_model.feats_dim
-            lstm_out = self.ehr_model.feats_dim
             projection_in = self.cxr_model.feats_dim
             feats_dim = 2 * self.ehr_model.feats_dim
 
@@ -34,6 +36,10 @@ class Fusion(nn.Module):
             lstm_in = self.cxr_model.feats_dim
             projection_in = self.ehr_model.feats_dim
             feats_dim = 2 * self.ehr_model.feats_dim
+
+        if self.fusion_lstm_hidden_dim is None:
+            self.fusion_lstm_hidden_dim = lstm_in
+        lstm_out = int(self.fusion_lstm_hidden_dim)
 
         self.projection = nn.Linear(projection_in, lstm_in)
         
@@ -45,10 +51,12 @@ class Fusion(nn.Module):
 
         self.lstm_fused_cls = nn.Linear(lstm_out, target_classes)
 
+        lstm_dropout = self.fusion_lstm_dropout if self.fusion_lstm_layers > 1 else 0.0
         self.lstm_fusion_layer = nn.LSTM(
             lstm_in, lstm_out,
             batch_first=True,
-            dropout = 0.0)
+            num_layers=self.fusion_lstm_layers,
+            dropout=lstm_dropout)
             
     def forward_uni_cxr(self, x, seq_lengths=None, img=None):
         cxr_preds, _, feats = self.cxr_model(img)
@@ -154,7 +162,8 @@ class Fusion(nn.Module):
         )
         
         x, (ht, _) = self.lstm_fusion_layer(feats)
-        out = ht.squeeze()
+        # Take the last layer's hidden state: [num_layers, batch, hidden] -> [batch, hidden]
+        out = ht[-1]
         fused_preds = self.lstm_fused_cls(out)
         
         return {
@@ -174,7 +183,8 @@ class Fusion(nn.Module):
         )
         
         x, (ht, _) = self.lstm_fusion_layer(feats)
-        out = ht.squeeze()
+        # Take the last layer's hidden state: [num_layers, batch, hidden] -> [batch, hidden]
+        out = ht[-1]
         fused_preds = self.lstm_fused_cls(out)
         
         return {
@@ -233,15 +243,38 @@ class CXRModels(nn.Module):
         super(CXRModels, self).__init__()
         self.args = args
         self.device = device
-        self.vision_backbone = getattr(torchvision.models, self.args.vision_backbone)(pretrained=self.args.pretrained)
-        classifiers = [ 'classifier', 'fc']
-        for classifier in classifiers:
-            cls_layer = getattr(self.vision_backbone, classifier, None)
-            if cls_layer is None:
-                continue
-            d_visual = cls_layer.in_features
-            setattr(self.vision_backbone, classifier, nn.Identity(d_visual))
-            break
+        self.cxr_encoder_type = getattr(self.args, 'cxr_encoder', 'resnet50').lower()
+        self.use_legacy_backbone = self.cxr_encoder_type in {'resnet50', 'medfuse_cxr'}
+
+        if self.use_legacy_backbone:
+            self.vision_backbone = getattr(torchvision.models, self.args.vision_backbone)(pretrained=self.args.pretrained)
+            classifiers = ['classifier', 'fc']
+            d_visual = None
+            for classifier in classifiers:
+                cls_layer = getattr(self.vision_backbone, classifier, None)
+                if cls_layer is None:
+                    continue
+                d_visual = cls_layer.in_features
+                setattr(self.vision_backbone, classifier, nn.Identity(d_visual))
+                break
+            if d_visual is None:
+                raise ValueError(f"Unsupported legacy vision backbone: {self.args.vision_backbone}")
+        else:
+            hidden_size = getattr(self.args, 'dim', 256)
+            self.vision_backbone = create_cxr_encoder(
+                encoder_type=self.cxr_encoder_type,
+                hidden_size=hidden_size,
+                pretrained=getattr(self.args, 'pretrained', True),
+                hf_model_id=getattr(self.args, 'hf_model_id', 'codewithdark/vit-chest-xray'),
+                freeze_vit=getattr(self.args, 'freeze_vit', True),
+                bias_tune=getattr(self.args, 'bias_tune', False),
+                partial_layers=getattr(self.args, 'partial_layers', 0),
+            )
+            if hasattr(self.vision_backbone, 'get_output_dim'):
+                d_visual = self.vision_backbone.get_output_dim()
+            else:
+                d_visual = hidden_size
+
         self.bce_loss = torch.nn.BCELoss(size_average=True)
         self.classifier = nn.Sequential(nn.Linear(d_visual, self.args.vision_num_classes))
         self.feats_dim = d_visual
@@ -249,7 +282,6 @@ class CXRModels(nn.Module):
 
     def forward(self, x, labels=None, n_crops=0, bs=16):
         lossvalue_bce = torch.zeros(1).to(self.device)
-
         visual_feats = self.vision_backbone(x)
         preds = self.classifier(visual_feats)
 

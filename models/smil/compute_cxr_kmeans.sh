@@ -11,6 +11,7 @@ N_CLUSTERS=10
 BATCH_SIZE=16
 GPU=0
 DATA_TYPE="full"  # matched or full
+HF_MODEL_ID="codewithdark/vit-chest-xray"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -48,16 +49,21 @@ while [[ $# -gt 0 ]]; do
             DATA_TYPE="$2"
             shift 2
             ;;
+        --hf_model_id)
+            HF_MODEL_ID="$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
             echo "  --task          Task type (phenotype|mortality) [default: phenotype]"
             echo "  --folds         Fold numbers to process [default: 1 2 3 4 5]"
-echo "  --cxr_encoder   CXR encoder (resnet50) [default: resnet50]"
+            echo "  --cxr_encoder   CXR encoder (resnet50|hf_chexpert_vit|densenet121-imagenet|densenet121-res224-chex) [default: resnet50]"
             echo "  --n_clusters    Number of clusters [default: 10]"
             echo "  --batch_size    Batch size [default: 16]"
             echo "  --gpu           GPU device ID [default: 0]"
-            echo "  --data_type     Data type (matched|full) [default: matched]"
+            echo "  --data_type     Data type (matched|full) [default: full]"
+            echo "  --hf_model_id   HF model id for hf_chexpert_vit [default: codewithdark/vit-chest-xray]"
             echo "  --help          Show this help message"
             echo ""
             echo "Examples:"
@@ -66,6 +72,7 @@ echo "  --cxr_encoder   CXR encoder (resnet50) [default: resnet50]"
             echo "  $0 --folds 2 4                            # Process folds 2, 4"
             echo "  $0 --folds 1 --task mortality             # Process fold 1 for mortality"
             echo "  $0 --folds 1 2 3 --data_type full         # Process folds 1-3 with full data"
+            echo "  $0 --folds 1 --cxr_encoder hf_chexpert_vit --data_type full"
             exit 0
             ;;
         *)
@@ -86,6 +93,9 @@ echo "Folds to process: ${FOLDS[*]}"
 echo "Data type: $DATA_TYPE"
 echo "Batch size: $BATCH_SIZE"
 echo "GPU: $GPU"
+if [ "$CXR_ENCODER" = "hf_chexpert_vit" ]; then
+    echo "HF model id: $HF_MODEL_ID"
+fi
 echo "============================================"
 
 # Create output directory if it doesn't exist
@@ -115,6 +125,7 @@ for FOLD in "${FOLDS[@]}"; do
         --fold $FOLD \
         --cxr_encoder $CXR_ENCODER \
         --pretrained \
+        --hf_model_id $HF_MODEL_ID \
         --hidden_dim 256 \
         --n_clusters $N_CLUSTERS \
         --batch_size $BATCH_SIZE \

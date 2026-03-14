@@ -1,0 +1,72 @@
+# CrossVPT with HF CheXpert ViT for phenotype task (Full dataset, 3 seeds)
+
+experiment_name: "crossvpt_hf_phenotype"
+description: "CrossVPT with HuggingFace CheXpert ViT for phenotype prediction on full dataset"
+
+model: crossvpt
+task: phenotype
+use_phenotype9: true
+fold: 1
+
+# Training parameters
+batch_size: 16
+lr: 0.0001
+patience: 10
+epochs: 50
+gpu: [0,1,2,3]  # 单 GPU：[0] | 多 GPU：[0, 1] 或 [0, 1, 2, 3]
+
+# Dataset: Full data (matched=false)
+matched: false
+use_demographics: false
+cross_eval: null
+
+# EHR encoder
+hidden_size: 256
+ehr_input_size: null
+ehr_n_head: 4
+ehr_n_layers_distinct: 1
+ehr_dropout: 0.2
+
+# Prompt configuration
+num_prompt_tokens: 5
+prompt_noise_std: 0.01
+prompt_token_dropout: 0.0
+
+# ⭐ HF ViT configuration (关键配置)
+vpt_feature: hf_chexpert_vit
+vpt_model_root: ''  # Not needed for HF models
+vpt_crop_size: 224
+hf_model_id: "codewithdark/vit-chest-xray"
+freeze_vit: false  # 冻结 ViT（默认）
+# freeze_vit: false  # 或者解冻进行全参数微调
+bias_tune: false
+partial_layers: 0
+
+# Fusion & loss
+final_pred_mode: concat
+fusion_variant: null
+
+
+loss_multi: 1.0
+loss_ehr: 1.0
+loss_cxr: 1.0
+aux_ehr_weight: 0.0
+
+num_classes: 9
+input_dim: 498
+
+# ⭐ 3 seeds for comprehensive evaluation
+seeds: [42, 123, 1234]
+
+# Save options
+save_checkpoint: true
+dev_run: false
+
+# Fairness metrics
+compute_fairness: true
+fairness_attributes: ["admission_type", "age", "gender", "race"]
+fairness_age_bins: [0, 40, 60, 80, .inf]  # 使用 999 代替 float('inf')，YAML 不支持 Python 的 inf 表达式
+fairness_intersectional: true
+
+# Save predictions for analysis
+save_predictions: true

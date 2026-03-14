@@ -49,7 +49,13 @@ class UMSE(BaseFuseTrainer):
             n_modality=self.hparams.n_modality,
             bottlenecks_n=self.hparams.bottlenecks_n,
             dropout_rate=self.hparams.dropout,
-            max_ehr_len=self.max_ehr_len
+            max_ehr_len=self.max_ehr_len,
+            cxr_encoder=getattr(self.hparams, 'cxr_encoder', 'patch_embed'),
+            pretrained=getattr(self.hparams, 'pretrained', True),
+            hf_model_id=getattr(self.hparams, 'hf_model_id', "codewithdark/vit-chest-xray"),
+            freeze_vit=getattr(self.hparams, 'freeze_vit', True),
+            bias_tune=getattr(self.hparams, 'bias_tune', False),
+            partial_layers=getattr(self.hparams, 'partial_layers', 0),
        )
        
     
@@ -122,4 +128,3 @@ class UMSE(BaseFuseTrainer):
         return {"loss": out['loss'], "pred": out['predictions'].detach(), "labels": out['labels'].detach()}
         
     
-

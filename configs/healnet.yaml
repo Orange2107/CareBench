@@ -1,4 +1,5 @@
 model_name: healnet
+tracked_hparams: [depth, latent_channels, cross_heads, latent_heads, num_freq_bands, max_freq, hidden_size, ehr_input_mode, cxr_input_mode, ehr_encoder_type, cxr_encoder]
 
 # -----------------------
 # Model Architecture & Fusion Parameters
@@ -24,8 +25,32 @@ ff_dropout: 0.2                 # Dropout rate for feed-forward layers
 # -----------------------
 # Input/Output Dimensions
 # -----------------------
+use_phenotype9: true
 input_dim: 49            # EHR dimension
-num_classes: 25           # Number of output classes
+hidden_size: 256        # Shared encoder hidden dimension from models/base/base_encoder.py
+num_classes: 9           # Number of output classes
+
+# -----------------------
+# Modality Input Modes
+# -----------------------
+ehr_input_mode: encoded      # raw | encoded
+cxr_input_mode: encoded       # raw | encoded
+
+# EHR encoded path
+ehr_encoder_type: transformer   # transformer | lstm
+ehr_context_dim: 256
+ehr_n_head: 4
+ehr_n_layers: 1
+ehr_dropout: 0.2
+ehr_bidirectional: true
+
+# CXR encoded path
+cxr_encoder: hf_chexpert_vit     # resnet50 | hf_chexpert_vit | densenet121-imagenet | densenet121-res224-chex
+cxr_context_dim: 256
+hf_model_id: codewithdark/vit-chest-xray
+freeze_vit: false
+bias_tune: false
+partial_layers: 0
 
 # -----------------------
 # Training Config
@@ -39,6 +64,8 @@ dropout: 0.2
 
 data_pairs: paired_ehr_cxr    
 pretrained: true              
+matched: false                # Use full data by default
+cross_eval: null
 
 use_label_weights: false  # Enable/disable label weights
 label_weight_method: balanced  # Options: 'balanced', 'inverse', 'sqrt_inverse', 'log_inverse', 'custom'

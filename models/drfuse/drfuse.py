@@ -68,13 +68,21 @@ class DrFuse(BaseFuseTrainer):
         self.cxr_model_shared = create_cxr_encoder(
             encoder_type=cxr_encoder_type,
             hidden_size=self.hparams.hidden_size,
-            pretrained=pretrained
+            pretrained=pretrained,
+            hf_model_id=getattr(self.hparams, 'hf_model_id', 'codewithdark/vit-chest-xray'),
+            freeze_vit=getattr(self.hparams, 'freeze_vit', True),
+            bias_tune=getattr(self.hparams, 'bias_tune', False),
+            partial_layers=getattr(self.hparams, 'partial_layers', 0),
         )
         
         self.cxr_model_spec = create_cxr_encoder(
             encoder_type=cxr_encoder_type,
             hidden_size=self.hparams.hidden_size,
-            pretrained=pretrained
+            pretrained=pretrained,
+            hf_model_id=getattr(self.hparams, 'hf_model_id', 'codewithdark/vit-chest-xray'),
+            freeze_vit=getattr(self.hparams, 'freeze_vit', True),
+            bias_tune=getattr(self.hparams, 'bias_tune', False),
+            partial_layers=getattr(self.hparams, 'partial_layers', 0),
         )
 
         self.shared_project = nn.Sequential(
@@ -370,6 +378,8 @@ class DrFuse(BaseFuseTrainer):
             pred_cxr = self.cxr_model_linear(feat_cxr_distinct).sigmoid()
             pred_shared = self.fuse_model_shared(feat_avg_shared).sigmoid()
             pred_final = torch.diagonal(pred_final, dim1=1, dim2=2).sigmoid()
+
+        print(f"pred_final: {pred_final.shape}")
 
         outputs = {
             'feat_ehr_shared': feat_ehr_shared,

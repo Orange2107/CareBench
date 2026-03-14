@@ -5,7 +5,11 @@ model_name: daft
 # Encoder Selection
 # -----------------------
 ehr_encoder: transformer  # Options: 'lstm', 'transformer'
-cxr_encoder: resnet50  # Options: 'resnet50'
+cxr_encoder: resnet50  # Options: 'resnet50', 'hf_chexpert_vit'
+hf_model_id: codewithdark/vit-chest-xray  # Used when cxr_encoder='hf_chexpert_vit'
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 
 # -----------------------
 # EHR Encoder Params (for transformer)

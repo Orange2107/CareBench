@@ -11,7 +11,11 @@ ehr_lstm_bidirectional: true
 ehr_n_head: 4
 
 # CXR Encoder Configuration
-cxr_encoder: resnet50  # 'resnet50'
+cxr_encoder: resnet50  # Options: 'resnet50', 'hf_chexpert_vit'
+hf_model_id: codewithdark/vit-chest-xray  # Used when cxr_encoder='hf_chexpert_vit'
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 pretrained: true
 
 # Model Architecture
@@ -36,4 +40,3 @@ compute_fairness: True
 fairness_attributes: ["admission_type", "age", "gender", "race"]
 fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
 fairness_intersectional: True
-

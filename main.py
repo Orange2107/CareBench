@@ -98,6 +98,8 @@ def sync_args_with_checkpoint(args: Namespace, model_from_checkpoint: Any) -> bo
     checkpoint_seed = getattr(model_from_checkpoint.hparams, 'seed', None)
     checkpoint_matched = getattr(model_from_checkpoint.hparams, 'matched', None)
     checkpoint_batch_size = getattr(model_from_checkpoint.hparams, 'batch_size', None)
+    checkpoint_use_phenotype9 = getattr(model_from_checkpoint.hparams, 'use_phenotype9', None)
+    checkpoint_num_classes = getattr(model_from_checkpoint.hparams, 'num_classes', None)
     
     # Update seed if different
     if checkpoint_seed is not None and checkpoint_seed != args.seed:
@@ -155,6 +157,28 @@ def sync_args_with_checkpoint(args: Namespace, model_from_checkpoint: Any) -> bo
             print(f"Using checkpoint batch_size={checkpoint_batch_size} for data loading to ensure consistency")
             args.batch_size = checkpoint_batch_size
             needs_reload = True
+
+    if checkpoint_use_phenotype9 is not None:
+        current_use_phenotype9 = getattr(args, 'use_phenotype9', False)
+        if checkpoint_use_phenotype9 != current_use_phenotype9:
+            print(
+                f"Warning: Checkpoint use_phenotype9={checkpoint_use_phenotype9} "
+                f"differs from test use_phenotype9={current_use_phenotype9}"
+            )
+            print(f"Using checkpoint use_phenotype9={checkpoint_use_phenotype9} for data loading consistency")
+            args.use_phenotype9 = checkpoint_use_phenotype9
+            needs_reload = True
+
+    if checkpoint_num_classes is not None:
+        current_num_classes = getattr(args, 'num_classes', None)
+        if current_num_classes != checkpoint_num_classes:
+            print(
+                f"Warning: Checkpoint num_classes={checkpoint_num_classes} "
+                f"differs from requested num_classes={current_num_classes}"
+            )
+            print(f"Using checkpoint num_classes={checkpoint_num_classes}")
+            args.num_classes = checkpoint_num_classes
+            args.vision_num_classes = checkpoint_num_classes
     
     return needs_reload
 
@@ -163,6 +187,15 @@ def setup_data_loaders(args: Namespace) -> Tuple[Any, Any, Any]:
     print(f"  Train: {'matched' if args.train_matched else 'full'} data")
     print(f"  Validation: {'matched' if args.val_matched else 'full'} data")
     print(f"  Test: {'matched' if args.test_matched else 'full'} data")
+
+    # Encoder-specific image preprocessing (e.g., HF CheXpert ViT)
+    use_chexpert_transform = False
+    cxr_encoder = getattr(args, 'cxr_encoder', None)
+    if isinstance(cxr_encoder, str) and cxr_encoder.lower() == 'hf_chexpert_vit':
+        use_chexpert_transform = True
+    vpt_feature = getattr(args, 'vpt_feature', None)
+    if isinstance(vpt_feature, str) and (vpt_feature == 'hf_chexpert_vit' or vpt_feature.startswith('hf_')):
+        use_chexpert_transform = True
     
     return create_data_loaders(
         args.ehr_root, args.task,
@@ -183,7 +216,9 @@ def setup_data_loaders(args: Namespace) -> Tuple[Any, Any, Any]:
         custom_label_weights=getattr(args, 'custom_label_weights', None),
         cxr_dropout_rate=getattr(args, 'cxr_dropout_rate', 0.0),
         cxr_dropout_seed=getattr(args, 'cxr_dropout_seed', None),
-        demographics_in_model_input=getattr(args, 'demographics_in_model_input', False)
+        demographics_in_model_input=getattr(args, 'demographics_in_model_input', False),
+        use_chexpert_transform=use_chexpert_transform,
+        use_phenotype9=getattr(args, 'use_phenotype9', False),
     )
 
 
@@ -202,6 +237,13 @@ def update_hparams_from_dataset(args: Namespace, hparams: Dict, train_loader: An
         print(f"Using configured input dimension: {args.input_dim}")
     
     hparams['class_names'] = train_dataset.CLASSES
+    actual_num_classes = len(train_dataset.CLASSES)
+    args.num_classes = actual_num_classes
+    hparams['num_classes'] = actual_num_classes
+    print(f"Auto-detected number of classes: {actual_num_classes}")
+    args.vision_num_classes = actual_num_classes
+    hparams['vision_num_classes'] = actual_num_classes
+    print(f"Synced vision_num_classes to: {actual_num_classes}")
     hparams['steps_per_epoch'] = len(train_loader)
     
     if getattr(args, 'use_label_weights', False) and hasattr(train_dataset, 'get_label_weights'):
@@ -559,8 +601,16 @@ def run_experiments_from_config(config_path: str, mode: str = 'train', additiona
         parser.add_argument('--use_demographics', action='store_true')
         parser.add_argument('--save_predictions', action='store_true')
         parser.add_argument('--fairness_intersectional', action='store_true')
+        parser.add_argument('--use_phenotype9', action='store_true')
         parser.add_argument('--patience', type=int)
         parser.add_argument('--dropout', type=float)
+
+        # Encoder overrides (for switching CXR encoders globally)
+        parser.add_argument('--cxr_encoder', type=str)
+        parser.add_argument('--hf_model_id', type=str)
+        parser.add_argument('--freeze_vit', type=str)
+        parser.add_argument('--bias_tune', type=str)
+        parser.add_argument('--partial_layers', type=int)
         
         try:
             parsed_overrides, _ = parser.parse_known_args(additional_args)

@@ -469,6 +469,24 @@ python main.py --model mymodel --task mortality --mode test \
 3. **Device Management**: `BaseFuseTrainer` handles device placement automatically
 4. **Fairness Evaluation**: Enable `compute_fairness` in config for demographic fairness analysis
 
+## 🧩 Switching CXR Encoders (Global)
+
+CareBench supports pluggable CXR encoders via the config key `cxr_encoder`.
+
+- Default: `cxr_encoder: resnet50` (ImageNet normalization)
+- Chest X-ray pre-trained HF ViT: `cxr_encoder: hf_chexpert_vit` with `hf_model_id`
+  - Uses CheXpert-style preprocessing: `Resize(224,224) + Normalize([0.5]*3, [0.5]*3)`
+
+Example:
+
+```yaml
+cxr_encoder: hf_chexpert_vit
+hf_model_id: codewithdark/vit-chest-xray
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
+```
+
 For more examples, see `models/drfuse/drfuse.py`.
 
 ---
@@ -493,5 +511,4 @@ If you use CareBench in your research, please cite:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-
 

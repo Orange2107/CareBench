@@ -6,6 +6,86 @@ from torchvision.models import densenet121, DenseNet121_Weights
 import torchxrayvision as xrv
 
 
+class HFCheXpertViTEncoder(nn.Module):
+    """HuggingFace ViT encoder pre-trained on chest X-rays.
+
+    Returns either:
+      - CLS pooled feature: (B, hidden_size), or
+      - Patch token features: (B, num_patches, hidden_size) when return_patch_tokens=True.
+    """
+
+    def __init__(
+        self,
+        hidden_size: int = 256,
+        pretrained: bool = True,
+        hf_model_id: str = "codewithdark/vit-chest-xray",
+        freeze_vit: bool = True,
+        bias_tune: bool = False,
+        partial_layers: int = 0,
+        return_patch_tokens: bool = False,
+    ):
+        super().__init__()
+        from transformers import AutoConfig, AutoModelForImageClassification
+
+        if pretrained:
+            self.model = AutoModelForImageClassification.from_pretrained(hf_model_id)
+        else:
+            config = AutoConfig.from_pretrained(hf_model_id)
+            self.model = AutoModelForImageClassification.from_config(config)
+
+        vit_hidden_dim = int(self.model.config.hidden_size)
+        self.proj = nn.Linear(vit_hidden_dim, hidden_size)
+        self.hidden_size = hidden_size
+        self.return_patch_tokens = return_patch_tokens
+
+        self._apply_freeze_strategy(freeze_vit=freeze_vit, bias_tune=bias_tune, partial_layers=partial_layers)
+
+    def _apply_freeze_strategy(self, freeze_vit: bool, bias_tune: bool, partial_layers: int) -> None:
+        if isinstance(freeze_vit, str):
+            freeze_vit = freeze_vit.lower() == 'true'
+        if isinstance(bias_tune, str):
+            bias_tune = bias_tune.lower() == 'true'
+        if isinstance(partial_layers, str):
+            partial_layers = int(partial_layers)
+
+        if freeze_vit:
+            self.model.vit.eval()
+            for p in self.model.vit.parameters():
+                p.requires_grad = False
+
+        if bias_tune:
+            for name, param in self.model.vit.named_parameters():
+                if 'bias' in name:
+                    param.requires_grad = True
+
+        if partial_layers > 0:
+            total_layers = len(self.model.vit.encoder.layer)
+            for i in range(total_layers - partial_layers, total_layers):
+                layer = self.model.vit.encoder.layer[i]
+                layer.train()
+                for p in layer.parameters():
+                    p.requires_grad = True
+
+            self.model.vit.layernorm.train()
+            for p in self.model.vit.layernorm.parameters():
+                p.requires_grad = True
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        embeddings = self.model.vit.embeddings(pixel_values=x)
+        encoder_output = self.model.vit.encoder(embeddings)
+        hidden_state = encoder_output.last_hidden_state if hasattr(encoder_output, 'last_hidden_state') else encoder_output[0]
+        hidden_state = self.model.vit.layernorm(hidden_state)
+        if self.return_patch_tokens:
+            # Drop CLS and keep patch tokens only: (B, 196, hidden_dim) for ViT-B/16@224.
+            patch_tokens = hidden_state[:, 1:, :]
+            return self.proj(patch_tokens)
+        cls_feat = hidden_state[:, 0] #选取cls token的特征
+        return self.proj(cls_feat) #将特征投影到hidden_size维度
+
+    def get_output_dim(self) -> int:
+        return self.hidden_size
+
+
 class EHREncoderFactory:
     @staticmethod
     def create_encoder(encoder_type, **kwargs):
@@ -21,6 +101,16 @@ class CXREncoderFactory:
     def create_encoder(encoder_type, hidden_size=256, pretrained=True, **kwargs):
         if encoder_type.lower() == 'resnet50':
             return ResNet50Encoder(hidden_size=hidden_size, pretrained=pretrained)
+        elif encoder_type.lower() == 'hf_chexpert_vit':
+            return HFCheXpertViTEncoder(
+                hidden_size=hidden_size,
+                pretrained=pretrained,
+                hf_model_id=kwargs.get('hf_model_id', "codewithdark/vit-chest-xray"),
+                freeze_vit=kwargs.get('freeze_vit', True),
+                bias_tune=kwargs.get('bias_tune', False),
+                partial_layers=kwargs.get('partial_layers', 0),
+                return_patch_tokens=kwargs.get('return_patch_tokens', False),
+            )
         elif encoder_type.lower() == 'densenet121-res224-chex':
             return DenseNet121CheXEncoder(hidden_size=hidden_size, pretrained=pretrained)
         elif encoder_type.lower() == 'densenet121-imagenet':
@@ -28,7 +118,7 @@ class CXREncoderFactory:
         else:
             raise ValueError(
                 f"Unsupported CXR encoder type: {encoder_type}. "
-                f"Supported types: 'resnet50', 'densenet121-res224-chex', 'densenet121-imagenet'"
+                f"Supported types: 'resnet50', 'hf_chexpert_vit', 'densenet121-res224-chex', 'densenet121-imagenet'"
             )
 
 class LearnablePositionalEncoding(nn.Module):

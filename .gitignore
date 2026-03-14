@@ -46,3 +46,14 @@ predictions/
 # Logs
 *.log
 logs/
+papers/
+codes/
+AGENTS.md
+Crossvpt.md
+change_encoder.md
+generate_results_csv.py
+
+# External git repositories (submodules)
+fastmoe/
+healnet-main/
+vpt-main/

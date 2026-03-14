@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from ..base import BaseFuseTrainer
 from ..registry import ModelRegistry
-from ..base.base_encoder import ResNet50Encoder
+from ..base.base_encoder import create_cxr_encoder
 
 @ModelRegistry.register('resnet')
 class ResNetModel(BaseFuseTrainer):
@@ -32,9 +32,15 @@ class ResNetModel(BaseFuseTrainer):
         self._init_model_components()
 
     def _init_model_components(self):
-        self.resnet_encoder = ResNet50Encoder(
+        cxr_encoder_type = getattr(self.hparams, 'cxr_encoder', 'resnet50')
+        self.resnet_encoder = create_cxr_encoder(
+            encoder_type=cxr_encoder_type,
             hidden_size=getattr(self.hparams, 'hidden_size', 256),
-            pretrained=getattr(self.hparams, 'pretrained', True)
+            pretrained=getattr(self.hparams, 'pretrained', True),
+            hf_model_id=getattr(self.hparams, 'hf_model_id', 'codewithdark/vit-chest-xray'),
+            freeze_vit=getattr(self.hparams, 'freeze_vit', True),
+            bias_tune=getattr(self.hparams, 'bias_tune', False),
+            partial_layers=getattr(self.hparams, 'partial_layers', 0),
         )
         self.classifier = nn.Linear(
             self.resnet_encoder.get_output_dim(),

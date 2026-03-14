@@ -10,6 +10,7 @@ from torch.nn.modules import TransformerEncoderLayer
 
 import math
 from torch.optim.lr_scheduler import _LRScheduler
+from ..base.base_encoder import HFCheXpertViTEncoder
 
 class CosineAnnealingWarmupRestarts(_LRScheduler):
     """
@@ -679,10 +680,16 @@ class MLHC(nn.Module):
                  num_layers,
                  batch_size,
                  max_ehr_len,
-                  num_heads=8,
+                 num_heads=8,
                  n_modality=2,
                  bottlenecks_n=4,
-                 dropout_rate=0.1):
+                 dropout_rate=0.1,
+                 cxr_encoder='patch_embed',
+                 pretrained=True,
+                 hf_model_id="codewithdark/vit-chest-xray",
+                 freeze_vit=True,
+                 bias_tune=False,
+                 partial_layers=0):
         super().__init__()
         self.d_model=d_model
         self.n_modality=n_modality
@@ -693,6 +700,7 @@ class MLHC(nn.Module):
         self.batch_size=batch_size
         self.num_layers=num_layers
         self.variables_num=variables_num
+        self.cxr_encoder_type = cxr_encoder.lower()
       
         self.ie_vslt = nn.Sequential(
                                         nn.Linear(1, self.d_model),
@@ -709,16 +717,38 @@ class MLHC(nn.Module):
         
         
         
-        self.patch_embedding = PatchEmbeddingBlock(
-            in_channels=3,
-            img_size=224,
-            patch_size=32,
-            hidden_size=self.d_model,
-            num_heads=self.num_heads,
-            proj_type="conv",
-            
-            dropout_rate=dropout_rate,
-            spatial_dims=2,
+        if self.cxr_encoder_type == 'patch_embed':
+            self.patch_embedding = PatchEmbeddingBlock(
+                in_channels=3,
+                img_size=224,
+                patch_size=32,
+                hidden_size=self.d_model,
+                num_heads=self.num_heads,
+                proj_type="conv",
+                dropout_rate=dropout_rate,
+                spatial_dims=2,
+            )
+            self.cxr_encoder = None
+            self.cxr_num_tokens = (224 // 32) * (224 // 32)
+        elif self.cxr_encoder_type == 'hf_chexpert_vit':
+            self.cxr_encoder = HFCheXpertViTEncoder(
+                hidden_size=self.d_model,
+                pretrained=pretrained,
+                hf_model_id=hf_model_id,
+                freeze_vit=freeze_vit,
+                bias_tune=bias_tune,
+                partial_layers=partial_layers,
+                return_patch_tokens=True,
+            )
+            self.patch_embedding = None
+            vit_config = self.cxr_encoder.model.config
+            image_size = vit_config.image_size if isinstance(vit_config.image_size, int) else vit_config.image_size[0]
+            patch_size = vit_config.patch_size if isinstance(vit_config.patch_size, int) else vit_config.patch_size[0]
+            self.cxr_num_tokens = (image_size // patch_size) * (image_size // patch_size)
+        else:
+            raise ValueError(
+                f"Unsupported cxr_encoder `{cxr_encoder}` for UMSE. "
+                "Supported: `patch_embed`, `hf_chexpert_vit`."
             )
 
         # fusion part
@@ -762,18 +792,26 @@ class MLHC(nn.Module):
         ehr_lengths = ehr_mask.sum(dim=1).long() 
 
         B,C,H,W=last_cxr.shape
-        
-        img_embedding = self.patch_embedding(last_cxr) # [B, patch_num,self.d_model]
-        _,patch_num,_=img_embedding.shape
+        has_cxr = has_cxr.view(-1).bool().to(ehr.device)
+
+        patch_num = self.cxr_num_tokens
+        img_embedding = ehr.new_zeros((B, patch_num, self.d_model))
+        if has_cxr.any():
+            if self.cxr_encoder_type == 'patch_embed':
+                present_img_embedding = self.patch_embedding(last_cxr[has_cxr]) # [B_present, patch_num, self.d_model]
+            else:
+                present_img_embedding = self.cxr_encoder(last_cxr[has_cxr])  # [B_present, patch_num, self.d_model]
+            img_embedding[has_cxr] = present_img_embedding
+
         cxrs_time=self.ie_time(last_cxr_time.unsqueeze(-1)) # [b,1]->[B,self.d_model]
         #[B,self.d_model]->[B,49,self.d_model]
         cxrs_time_embedding = cxrs_time.unsqueeze(1).expand(-1, patch_num, -1)
         # img type embedding
         img_feat = self.ie_feat(torch.full((B,), self.variables_num, dtype=torch.long, device=img_embedding.device))
         img_feat = img_feat.unsqueeze(1).expand(-1, patch_num, -1)  # [B, d_model] -> [B, patch_num, d_model]
-        img_embedding = img_embedding + cxrs_time_embedding + img_feat 
+        if has_cxr.any():
+            img_embedding[has_cxr] = img_embedding[has_cxr] + cxrs_time_embedding[has_cxr] + img_feat[has_cxr]
         
-        patch_num = (224 // 32) ** 2  
         cxr_lengths = torch.full((B,), patch_num, dtype=torch.long, device=img_embedding.device)
         
         outputs, _ = self.fusion_transformer(enc_outputs = [vslt_embedding, img_embedding], 

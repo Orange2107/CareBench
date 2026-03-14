@@ -20,6 +20,8 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.class_weight import compute_class_weight
 
+from .phenotype9 import select_phenotype9_labels
+
 
 # set dataloader seed
 def set_seed(_seed):
@@ -45,7 +47,9 @@ class MultiModalMIMIC(Dataset):
                  image_meta_path="/hdd/datasets/mimic-cxr-jpg/2.0.0/mimic-cxr-2.0.0-metadata.csv",
                  use_demographics=False, demographic_cols=None,
                  use_label_weights=False, label_weight_method='balanced', custom_label_weights=None,
-                 cxr_dropout_rate=0.0, cxr_dropout_seed=None, demographics_in_model_input=False):
+                 cxr_dropout_rate=0.0, cxr_dropout_seed=None, demographics_in_model_input=False,
+                 use_chexpert_transform: bool = False,
+                 use_phenotype9: bool = False):
         self.seed = seed
         # Save initial random state
         self.random_state = random.getstate()
@@ -61,6 +65,8 @@ class MultiModalMIMIC(Dataset):
         self.preload_images = {}
         self.resized_base_path = resized_base_path
         self.use_triplet = use_triplet
+        self.use_chexpert_transform = use_chexpert_transform
+        self.use_phenotype9 = use_phenotype9
         
         # Label weight configuration
         self.use_label_weights = use_label_weights
@@ -196,7 +202,16 @@ class MultiModalMIMIC(Dataset):
             self.CLASSES = ['Mortality']
             self.targets = self.ehr_meta['icu_mortality'].values
         elif task == 'phenotype':
-            self.CLASSES = self.ehr_meta.columns[-26:-1].tolist()
+            all_phenotype_cols = self.ehr_meta.columns[-26:-1].tolist()
+            
+            if use_phenotype9:
+                self.CLASSES, phenotype_9_indices = select_phenotype9_labels(all_phenotype_cols)
+                print(f"Using Phenotype-9 (indices {phenotype_9_indices}):")
+                for i, cls in enumerate(self.CLASSES, 1):
+                    print(f"  {i}. {cls}")
+            else:
+                self.CLASSES = all_phenotype_cols
+            
             self.targets = self.ehr_meta[self.CLASSES].values.astype(np.float32)
         elif task == 'los':
             # 定义 LoS 类别名称
@@ -307,17 +322,30 @@ class MultiModalMIMIC(Dataset):
         self.cxr_meta = pd.read_csv(image_meta_path)
 
         # define transformation for CXR
-        cxr_transform = [transforms.Resize(256)]
-        if partition == 'train':
+        use_chexpert_transform = getattr(self, 'use_chexpert_transform', False)
+        if use_chexpert_transform:
+            cxr_transform = [transforms.Resize((224, 224))]
+            if partition == 'train':
+                cxr_transform += [
+                    transforms.RandomAffine(degrees=45, scale=(.85, 1.15), shear=0, translate=(0.15, 0.15)),
+                ]
             cxr_transform += [
-                transforms.RandomAffine(degrees=45, scale=(.85, 1.15), shear=0, translate=(0.15, 0.15)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
             ]
-        cxr_transform += [
-            transforms.CenterCrop(224),
-            transforms.ToTensor()
-        ]
-        if imagenet_normalization:
-            cxr_transform += [transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]
+            print("[Dataset] Using CheXpert ViT preprocessing: Resize(224)+Normalize([0.5]*3,[0.5]*3)")
+        else:
+            cxr_transform = [transforms.Resize(256)]
+            if partition == 'train':
+                cxr_transform += [
+                    transforms.RandomAffine(degrees=45, scale=(.85, 1.15), shear=0, translate=(0.15, 0.15)),
+                ]
+            cxr_transform += [
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+            ]
+            if imagenet_normalization:
+                cxr_transform += [transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]
         self.cxr_transform = transforms.Compose(cxr_transform)
 
         # Calculate label weights if enabled
@@ -985,7 +1013,9 @@ def create_data_loaders(ehr_data_dir, task, replication, batch_size,
                         train_matched=None, val_matched=None, test_matched=None,
                         use_demographics=False, demographic_cols=None,
                         use_label_weights=False, label_weight_method='balanced', custom_label_weights=None,
-                        cxr_dropout_rate=0.0, cxr_dropout_seed=None, demographics_in_model_input=False):
+                        cxr_dropout_rate=0.0, cxr_dropout_seed=None, demographics_in_model_input=False,
+                        use_chexpert_transform: bool = False,
+                        use_phenotype9: bool = False):
     """Create data loaders for clinical tasks with flexible matched/full data selection and optional demographics"""
     set_seed(seed)
     time_limit = 48  # Fixed time limit to 48 hours
@@ -1051,7 +1081,9 @@ def create_data_loaders(ehr_data_dir, task, replication, batch_size,
         custom_label_weights=custom_label_weights,
         cxr_dropout_rate=cxr_dropout_rate,
         cxr_dropout_seed=cxr_dropout_seed,
-        demographics_in_model_input=demographics_in_model_input
+        demographics_in_model_input=demographics_in_model_input,
+        use_chexpert_transform=use_chexpert_transform,
+        use_phenotype9=use_phenotype9,
     )
 
 def _create_clinical_loaders(**kwargs):
@@ -1088,7 +1120,9 @@ def _create_clinical_loaders(**kwargs):
             custom_label_weights=kwargs.get('custom_label_weights', None),
             cxr_dropout_rate=kwargs.get('cxr_dropout_rate', 0.0),
             cxr_dropout_seed=kwargs.get('cxr_dropout_seed', None),
-            demographics_in_model_input=kwargs.get('demographics_in_model_input', False)
+            demographics_in_model_input=kwargs.get('demographics_in_model_input', False),
+            use_chexpert_transform=kwargs.get('use_chexpert_transform', False),
+            use_phenotype9=kwargs.get('use_phenotype9', False)
         )
         
         g = torch.Generator()

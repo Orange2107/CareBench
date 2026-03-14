@@ -1,0 +1,60 @@
+model_name: crossvpt
+tracked_hparams: [num_prompt_tokens, prompt_token_dropout, prompt_noise_std]
+
+# Task configuration
+# task: mortality | phenotype | los
+
+# Phenotype-9 configuration (only used when task: phenotype)
+# Set to true to use only 9 selected cardiovascular/respiratory labels
+# Set to false (or omit) to use all 25 phenotype labels
+use_phenotype9: true
+num_classes: 9
+
+# EHR encoder / prompt generator
+hidden_size: 256
+ehr_input_size: null  # if null, fallback to dataset-provided input_dim
+ehr_n_head: 4
+ehr_n_layers_distinct: 1
+ehr_dropout: 0.2
+
+num_prompt_tokens: 5
+prompt_project_dim: -1 # if -1, use the same dimension as the input
+prompt_dropout: 0.0
+
+# Prompt regularization
+prompt_noise_std: 0.0
+prompt_token_dropout: 0.0
+
+# 使用示例:
+#   HF 模型：vpt_feature: hf_chexpert_vit
+#           hf_model_id: "codewithdark/vit-chest-xray" (可选，默认同左)
+#           vpt_model_root: '' (HF 模式下不需要)
+#
+#   VPT 模型：vpt_feature: sup_vitb16_imagenet21k
+#            vpt_model_root: '/hdd/CrossVpt/checkpoints' (必须包含对应权重文件)
+# ============================================================================
+vpt_feature: hf_chexpert_vit  # vit-chest-xray | sup_vitb16_imagenet21k | hf_chexpert_vit | moco_vitb16 | mae_vitb16
+vpt_model_root: '/hdd/CrossVpt/checkpoints'  # set this to the directory containing ViT npz/pth weights (not needed for HF models)
+vpt_crop_size: 224
+hf_model_id: codewithdark/vit-chest-xray  # HuggingFace model ID (e.g., "codewithdark/vit-chest-xray"), only used when vpt_feature starts with "hf_"
+
+load_pretrain: true
+
+freeze_vit: false
+bias_tune: false
+partial_layers: 0
+
+# Fusion & loss
+final_pred_mode: concat
+fusion_variant: null  # concat_avgpool | cls_residual | null
+pool_include: ['cls', 'prompt', 'image']
+alpha_init: 0.1
+
+loss_multi: 1.0
+loss_ehr: 1.0
+loss_cxr: 1.0
+aux_ehr_weight: 0.0
+
+# Optimizer
+lr: 0.0001
+wd: 0.0

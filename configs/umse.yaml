@@ -1,5 +1,6 @@
 # MLHC UMSE Model Configuration
 model_name: umse
+tracked_hparams: [d_model, num_layers, num_heads, bottlenecks_n, use_triplet, cxr_encoder, freeze_vit, partial_layers]
 
 # -----------------------
 # Model Architecture
@@ -14,6 +15,11 @@ bottlenecks_n: 1
 dropout: 0.2
 max_ehr_len: 500
 num_classes: 25
+cxr_encoder: patch_embed  # Options: 'patch_embed', 'hf_chexpert_vit'
+hf_model_id: codewithdark/vit-chest-xray
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 
 # -----------------------
 # Task Configuration
@@ -47,4 +53,3 @@ fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
 fairness_intersectional: True
 
 # python  main.py --model utde --mode train --task mortality --matched
-

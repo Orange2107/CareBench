@@ -80,7 +80,11 @@ class OptimizedFlexMoEModel(torch.nn.Module):
         if len(input_dims) > 1:
             cxr_params = {
                 'hidden_size': hidden_dim,
-                'pretrained': pretrained
+                'pretrained': pretrained,
+                'hf_model_id': encoder_kwargs.get('hf_model_id', 'codewithdark/vit-chest-xray'),
+                'freeze_vit': encoder_kwargs.get('freeze_vit', True),
+                'bias_tune': encoder_kwargs.get('bias_tune', False),
+                'partial_layers': encoder_kwargs.get('partial_layers', 0),
             }
             self.cxr_encoder = create_cxr_encoder(encoder_type=cxr_encoder, **cxr_params)
             self.cxr_patch_adapter = FlexMoEPatchAdapter(

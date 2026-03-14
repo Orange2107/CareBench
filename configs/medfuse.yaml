@@ -1,29 +1,46 @@
 model_name: medfuse
+tracked_hparams: [fusion_type, align, ehr_encoder, cxr_encoder, ehr_dropout, lstm_dropout, fusion_lstm_hidden_dim, fusion_lstm_layers, fusion_lstm_dropout]
 
 # -----------------------
 # Encoder Selection
 # -----------------------
 ehr_encoder: lstm  # Options: 'lstm', 'transformer', 'drfuse'
-cxr_encoder: resnet50  # Options: 'resnet50', 'medfuse_cxr'
+cxr_encoder: hf_chexpert_vit  # Options: 'resnet50', 'hf_chexpert_vit', 'medfuse_cxr'
+hf_model_id: codewithdark/vit-chest-xray  # Used when cxr_encoder='hf_chexpert_vit'
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 
 # -----------------------
 # EHR Encoder Params (for transformer)
 # -----------------------
 ehr_n_head: 8
 ehr_n_layers: 2
+ehr_dropout: 0.3  # Dropout for Transformer encoder layers
+
+# -----------------------
+# LSTM Encoder Params (for lstm)
+# -----------------------
+lstm_dropout: 0.3  # Post-LSTM feature dropout; LSTM internal dropout applies only when lstm_layers > 1
+lstm_layers: 1     # Number of LSTM layers
 
 # -----------------------
 # Vision Model Params (legacy, for medfuse_cxr compatibility)
 # -----------------------
 vision_backbone: resnet50
-vision_num_classes: 25
+vision_num_classes: 9
 labels_set: phenotype
 fusion_type: lstm
+fusion_lstm_hidden_dim: 256  # Hidden size of the fusion LSTM used by fusion_type=lstm/uni_ehr_lstm
+fusion_lstm_layers: 1        # Number of layers in the fusion LSTM
+fusion_lstm_dropout: 0.0     # Inter-layer dropout in fusion LSTM (used only when fusion_lstm_layers > 1)
 
+use_phenotype9: true
+matched: false
+cross_eval: null
 dim: 256
-layers: 1
 input_dim: 49  # EHR dimension 27+22
-num_classes: 25  # Usually same as vision_num_classes to prevent omissions
+num_classes: 9  # Usually same as vision_num_classes to prevent omissions
 
 # -----------------------
 # Training Config
@@ -34,7 +51,6 @@ epochs: 50
 patience: 10
 lr: 0.0001
   
-dropout: 0.3
 pretrained: true  # Whether to use pretrained model weights
 
 # -----------------------
@@ -52,7 +68,7 @@ align: 0.0  # Disable alignment loss
 # -----------------------  
 # Legacy Options (kept for backward compatibility)
 # -----------------------
-drfuse_encoder: false  # Will be overridden by ehr_encoder setting
+drfuse_encoder: false  # Derived from ehr_encoder at runtime; kept only for backward compatibility
 
 
 # Label Weight Configuration for Class Imbalance

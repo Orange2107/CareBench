@@ -12,7 +12,11 @@ input_dim: 49
 # Encoder Selection
 # -----------------------
 ehr_encoder: 'transformer'        # lstm, transformer
-cxr_encoder: 'resnet50'    # resnet50
+cxr_encoder: 'resnet50'    # Options: 'resnet50', 'hf_chexpert_vit'
+hf_model_id: codewithdark/vit-chest-xray  # Used when cxr_encoder='hf_chexpert_vit'
+freeze_vit: true
+bias_tune: false
+partial_layers: 0
 pretrained: true
 
 # -----------------------
@@ -55,6 +59,5 @@ fairness_age_bins: [0, 40, 60, 80, .inf]  # Age ranges: 0-40, 40-60, 60-80, 80+
 fairness_intersectional: True
 
 # python  main.py --model utde --mode train --task mortality --matched
-
 
 

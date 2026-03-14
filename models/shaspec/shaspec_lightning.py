@@ -57,7 +57,13 @@ class ShaSpec(BaseFuseTrainer):
             num_layers=getattr(self.hparams, 'num_layers', 3),
             dropout=self.dropout,
             ehr_input_dim=self.input_dim,
-            max_seq_len=getattr(self.hparams, 'max_seq_len', 500)
+            max_seq_len=getattr(self.hparams, 'max_seq_len', 500),
+            cxr_encoder=cxr_encoder_type,
+            pretrained=pretrained,
+            hf_model_id=getattr(self.hparams, 'hf_model_id', 'codewithdark/vit-chest-xray'),
+            freeze_vit=getattr(self.hparams, 'freeze_vit', True),
+            bias_tune=getattr(self.hparams, 'bias_tune', False),
+            partial_layers=getattr(self.hparams, 'partial_layers', 0),
         )
 
         ehr_params = {
